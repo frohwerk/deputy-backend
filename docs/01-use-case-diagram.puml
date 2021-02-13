@@ -1,0 +1,50 @@
+@startuml Anwendungsfälle
+
+left to right direction
+
+skinparam Shadowing false
+skinparam Monochrome true
+
+skinparam UsecaseBackgroundColor white
+skinparam RectangleBackgroundColor white
+skinparam RectangleFontStyle bold
+
+actor "Entwickler" as dev
+actor "Business Analyst" as ba
+
+rectangle "Deputy" {
+    usecase "Anwendungen erfassen" as create_app
+    usecase "Komponenten zuordnen" as assign_component
+    usecase "Aktuellen Zustand sichten" as review
+    usecase "Anwendungen kopieren" as copy
+    usecase "Freigabe anfordern" as request_signoff
+}
+
+rectangle "Openshift" {
+    usecase "Komponente ausführen" as run_component
+}
+
+rectangle "Artifactory" {
+    usecase "Artefakte archivieren" as archive_artifact
+    usecase "Artefakte herunterladen" as load_artifact
+}
+
+rectangle "Lifetime" {
+    usecase "Freigabe erteilen" as signoff
+}
+
+dev --> create_app
+dev --> assign_component
+dev --> review
+dev --> copy
+dev --> request_signoff
+
+copy --> run_component
+copy --> load_artifact
+
+ba --> signoff
+
+Deputy -[hidden]- Openshift
+request_signoff --> Lifetime
+
+@enduml

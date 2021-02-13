@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: centos/postgresql-12-centos7:latest
+        # securityContext:
+        #   runAsUser: 999
+        #   runAsGroup: 999
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        env:
+        - name: POSTGRESQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: user
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: password
+        - name: POSTGRESQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: database
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /var/lib/pgsql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+            claimName: postgres-data-claim

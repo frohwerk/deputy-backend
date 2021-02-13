@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="573px" preserveAspectRatio="none" style="width:636px;height:573px;" version="1.1" viewBox="0 0 636 573" width="636px" zoomAndPan="magnify"><defs/><g><!--MD5=[7e37e48b4e3e1e52e0acdd40e9039ac6]
+cluster deputy--><polygon fill="#FFFFFF" points="369,6,423,6,430,29.6094,509,29.6094,509,215,369,215,369,6" style="stroke:#000000;stroke-width:1.5;"/><line style="stroke:#000000;stroke-width:1.5;" x1="369" x2="430" y1="29.6094" y2="29.6094"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="48" x="373" y="22.5332">deputy</text><!--MD5=[7f20f5e6db92331548384b48a87a155d]
+cluster kubernetes--><polygon fill="#FFFFFF" points="16,265,160,265,167,288.6094,452,288.6094,452,566,16,566,16,265" style="stroke:#000000;stroke-width:1.5;"/><line style="stroke:#000000;stroke-width:1.5;" x1="16" x2="167" y1="288.6094" y2="288.6094"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="138" x="20" y="281.5332">Kubernetes Cluster</text><!--MD5=[8ae77ada6169822435c3d3bcb01b6727]
+cluster system--><polygon fill="#FFFFFF" points="258,309,399,309,406,332.6094,428,332.6094,428,409,258,409,258,309" style="stroke:#000000;stroke-width:1.5;"/><line style="stroke:#000000;stroke-width:1.5;" x1="258" x2="406" y1="332.6094" y2="332.6094"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="135" x="262" y="325.5332">System Namespace</text><!--MD5=[cb8ac4b308bf29cccff4fabd2ec04d9c]
+cluster user--><polygon fill="#FFFFFF" points="40,442,164,442,171,465.6094,428,465.6094,428,542,40,542,40,442" style="stroke:#000000;stroke-width:1.5;"/><line style="stroke:#000000;stroke-width:1.5;" x1="40" x2="171" y1="465.6094" y2="465.6094"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="118" x="44" y="458.5332">User Namespace</text><!--MD5=[b1e3d2dcb3697de9e6328d1cb436cbc4]
+entity frontend--><rect fill="#F8F8F8" height="47.6094" style="stroke:#383838;stroke-width:1.5;" width="86" x="396" y="42"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="462" y="47"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="460" y="49"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="460" y="53"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="46" x="411" y="76.5332">Web-UI</text><!--MD5=[4e8ecd94af36cce41665c9f079adf9fd]
+entity backend--><rect fill="#F8F8F8" height="47.6094" style="stroke:#383838;stroke-width:1.5;" width="108" x="385" y="151"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="473" y="156"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="471" y="158"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="471" y="162"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="68" x="400" y="185.5332">API-Server</text><!--MD5=[b1d6bc48c8998cc1c37491cf7fca75b1]
+entity k8s_api_server--><rect fill="#F8F8F8" height="47.6094" style="stroke:#383838;stroke-width:1.5;" width="138" x="274" y="345"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="392" y="350"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="390" y="352"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="390" y="356"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="98" x="289" y="379.5332">Kubernetes API</text><!--MD5=[41d5b7aa92177ec7d5054579e89c84a4]
+entity some_component--><rect fill="#F8F8F8" height="47.6094" style="stroke:#383838;stroke-width:1.5;" width="153" x="56.5" y="478"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="189.5" y="483"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="187.5" y="485"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="187.5" y="489"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="113" x="71.5" y="512.5332">Some Component</text><!--MD5=[cdf726baec9b232720460e89f5b39043]
+entity another_component--><rect fill="#F8F8F8" height="47.6094" style="stroke:#383838;stroke-width:1.5;" width="167" x="244.5" y="478"/><rect fill="#F8F8F8" height="10" style="stroke:#383838;stroke-width:1.5;" width="15" x="391.5" y="483"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="389.5" y="485"/><rect fill="#F8F8F8" height="2" style="stroke:#383838;stroke-width:1.5;" width="4" x="389.5" y="489"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="127" x="259.5" y="512.5332">Another Component</text><!--MD5=[f50ff5e4cd64f259303fc83dba1819fc]
+entity database--><path d="M468.5,355.5 C468.5,345.5 508,345.5 508,345.5 C508,345.5 547.5,345.5 547.5,355.5 L547.5,382.1094 C547.5,392.1094 508,392.1094 508,392.1094 C508,392.1094 468.5,392.1094 468.5,382.1094 L468.5,355.5 " fill="#F8F8F8" style="stroke:#000000;stroke-width:1.5;"/><path d="M468.5,355.5 C468.5,365.5 508,365.5 508,365.5 C508,365.5 547.5,365.5 547.5,355.5 " fill="none" style="stroke:#000000;stroke-width:1.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="59" x="478.5" y="384.0332">database</text><!--MD5=[512b5ef6f4d1f99bc98e15dae332c43b]
+link k8s_api_server to database--><!--MD5=[f7c816afe62d063f127038f2cbf975c6]
+link k8s_api_server to some_component--><!--MD5=[d69957d2689cdfcf91e75ef55250dd0e]
+link some_component to another_component--><!--MD5=[bd606b2753a479dfaff996c7926d0075]
+link frontend to backend--><path d="M439,90.19 C439,108.25 439,132.83 439,150.88 " fill="none" id="frontend-backend" style="stroke:#383838;stroke-width:1.0;"/><path d="M446.0711,113.4677 A10,10 0 0 0 431.9289 113.4677" fill="#FFFFFF" style="stroke:#383838;stroke-width:1.5;"/><ellipse cx="439" cy="120.5388" fill="#FFFFFF" rx="6" ry="6" style="stroke:#383838;stroke-width:1.5;"/><!--MD5=[920c8a736209b6576b8aa63d9f8aeece]
+link backend to k8s_api_server--><path d="M398.5,199.18 C398.5,236.46 398.5,307.55 398.5,344.82 " fill="none" id="backend-k8s_api_server" style="stroke:#383838;stroke-width:1.0;"/><path d="M405.5711,264.9327 A10,10 0 0 0 391.4289 264.9327" fill="#FFFFFF" style="stroke:#383838;stroke-width:1.5;"/><ellipse cx="398.5" cy="272.0038" fill="#FFFFFF" rx="6" ry="6" style="stroke:#383838;stroke-width:1.5;"/><!--MD5=[ae8f8d2604f46f9c0f01e6ef0c8773df]
+link backend to database--><path d="M480.75,199.18 C480.75,199.18 480.75,340.43 480.75,340.43 " fill="none" id="backend-to-database" style="stroke:#383838;stroke-width:1.0;stroke-dasharray:7.0,7.0;"/><polygon fill="#383838" points="480.75,345.43,484.75,336.43,480.75,340.43,476.75,336.43,480.75,345.43" style="stroke:#383838;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="146" x="482" y="245.4951">store additional metadata</text><!--MD5=[31794d12d20bea55d5afe47aeebd928b]
+@startuml Architektur
+
+skinparam Shadowing false
+skinparam Monochrome true
+skinparam Handwritten false
+skinparam Linetype ortho
+
+package deputy {
+    component "Web-UI" as frontend
+    component "API-Server" as backend
+}
+
+package "Kubernetes Cluster" as kubernetes {
+    package "System Namespace" as system {
+        component "Kubernetes API" as k8s_api_server
+    }
+    package "User Namespace" as user {
+        component "Some Component" as some_component
+        component "Another Component" as another_component
+    }
+}
+
+database database
+
+' Enforce positioning
+k8s_api_server -[hidden]> database
+k8s_api_server -[hidden]-> some_component
+some_component -[hidden]> another_component
+
+frontend -(0- backend
+backend -(0- k8s_api_server
+backend ..> database : store additional metadata
+
+@enduml
+
+@startuml Architektur
+
+skinparam Shadowing false
+skinparam Monochrome true
+skinparam Handwritten false
+skinparam Linetype ortho
+
+package deputy {
+    component "Web-UI" as frontend
+    component "API-Server" as backend
+}
+
+package "Kubernetes Cluster" as kubernetes {
+    package "System Namespace" as system {
+        component "Kubernetes API" as k8s_api_server
+    }
+    package "User Namespace" as user {
+        component "Some Component" as some_component
+        component "Another Component" as another_component
+    }
+}
+
+database database
+
+k8s_api_server -[hidden]> database
+k8s_api_server -[hidden]-> some_component
+some_component -[hidden]> another_component
+
+frontend -(0- backend
+backend -(0- k8s_api_server
+backend ..> database : store additional metadata
+
+@enduml
+
+PlantUML version 1.2020.22(Sun Dec 06 10:36:27 CET 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: Cp1252
+Language: de
+Country: DE
+--></g></svg>

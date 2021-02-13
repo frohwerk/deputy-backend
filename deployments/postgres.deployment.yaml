@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: 172.30.1.1:5000/myproject/postgresql:12-openshift
+        imagePullPolicy: Always
+        # securityContext:
+        #   runAsUser: 999
+        #   runAsGroup: 999
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: password
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: postgres-config
+              key: database
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+            claimName: postgres-data-claim

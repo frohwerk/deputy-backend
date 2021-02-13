@@ -1,0 +1,5 @@
+# IDE metadata
+.vscode/
+
+# Build output
+build/

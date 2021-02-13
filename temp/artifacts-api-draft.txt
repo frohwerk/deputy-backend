@@ -1,0 +1,28 @@
+Current implementation
+======================
+{"eventType":"ADDED","object":{"name":"ocrproxy","type":"k8s.io/api/apps/v1/Deployment","image":"172.30.1.1:5000/myproject/ocrproxy"}}
+{"eventType":"ADDED","object":{"name":"postgres","type":"k8s.io/api/apps/v1/Deployment","image":"centos/postgresql-12-centos7:latest"}}
+
+Future implementation
+=====================
+- Add group attribute to objects
+
+
+/api/apps
+> List all apps
+/api/apps/abc
+> Get metadata of app "abc"
+/api/apps/abc/components
+> List all components of app "abc"
+/api/components
+> List all components
+/api/components?unassigned
+> List all unassigned components
+/api/components/ocrproxy
+> Get metadata of component ocrproxy
+
+/api/apps/abc/components/ocrproxy => /api/components/ocrproxy
+
+TODO
+====
+- Point out discrepancy between semantic versioning and docker tags

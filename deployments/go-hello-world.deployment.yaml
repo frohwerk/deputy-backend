@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-hello-world
+spec:
+  selector:
+    matchLabels:
+      app: go-hello-world
+  template:
+    metadata:
+      labels:
+        app: go-hello-world
+    spec:
+      containers:
+      - name: go-hello-world
+        image: 172.30.1.1:5000/myproject/go-hello-world
+        resources:
+          limits:
+            cpu: "1"
+            memory: "128Mi"

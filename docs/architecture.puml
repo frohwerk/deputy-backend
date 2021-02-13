@@ -1,0 +1,34 @@
+@startuml Architektur
+
+skinparam Shadowing false
+skinparam Monochrome true
+skinparam Handwritten false
+skinparam Linetype ortho
+
+package deputy {
+    component "Web-UI" as frontend
+    component "API-Server" as backend
+}
+
+package "Kubernetes Cluster" as kubernetes {
+    package "System Namespace" as system {
+        component "Kubernetes API" as k8s_api_server
+    }
+    package "User Namespace" as user {
+        component "Some Component" as some_component
+        component "Another Component" as another_component
+    }
+}
+
+database database
+
+' Enforce positioning
+k8s_api_server -[hidden]> database
+k8s_api_server -[hidden]-> some_component
+some_component -[hidden]> another_component
+
+frontend -(0- backend
+backend -(0- k8s_api_server
+backend ..> database : store additional metadata
+
+@enduml

@@ -1,0 +1,3 @@
+CREATE TABLE apps(
+    name VARCHAR(50) PRIMARY KEY,
+);
