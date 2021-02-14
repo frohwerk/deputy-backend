@@ -1,5 +1,7 @@
 # IDE metadata
 .vscode/
+localhost.session.sql
 
 # Build output
+**/__debug_bin
 build/

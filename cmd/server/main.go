@@ -112,6 +112,7 @@ func main() {
 			r.Use(appParameter)
 			r.Get("/artifacts", getComponents) // TODO Remove deprecated endpoint after frontend update
 			r.Get("/components", getComponents)
+			r.Put("/components", apps.UpdateComponents(as))
 			r.Get("/", apps.Get(as, cs))
 		})
 	})

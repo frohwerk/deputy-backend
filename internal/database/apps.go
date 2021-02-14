@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"log"
 
@@ -18,6 +19,8 @@ type AppStore interface {
 	Get(string) (*App, error)
 	Create(App) (*App, error)
 	ListAll() ([]App, error)
+
+	UpdateComponents(ctx context.Context, id string, components []string) error
 }
 
 type appStore struct {
@@ -64,4 +67,45 @@ func (s *appStore) Create(app App) (*App, error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// TODO: Patching the assignments instead of recreating is probably more efficient
+func (s *appStore) UpdateComponents(ctx context.Context, id string, components []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	delete, err := tx.Prepare(`DELETE FROM apps_components WHERE app_id = $1`)
+	if err != nil {
+		return err
+	}
+
+	if _, err := delete.Exec(id); err != nil {
+		return tryRollback(tx, err)
+	}
+
+	insert, err := tx.Prepare(`INSERT INTO apps_components (app_id, component_id) VALUES($1, $2)`)
+	if err != nil {
+		return tryRollback(tx, err)
+	}
+
+	for _, componentId := range components {
+		if _, err := insert.Exec(id, componentId); err != nil {
+			return tryRollback(tx, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func tryRollback(tx *sql.Tx, err error) error {
+	if err := tx.Rollback(); err != nil {
+		return err
+	}
+	return err
 }
