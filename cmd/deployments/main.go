@@ -3,7 +3,6 @@ package main
 import (
 	// "k8s.io/client-go/kubernetes"
 
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -36,17 +35,13 @@ func main() {
 		return
 	}
 
-	cadata, err := base64.StdEncoding.DecodeString(config.Clusters[config.Default].CAData)
-	if err != nil {
-		fmt.Printf("%s\n", err)
-		return
-	}
+	fmt.Println(config.Clusters[config.Default].CAData)
 
 	clientcfg := &rest.Config{
 		Host:        config.Clusters[config.Default].Host,
 		BearerToken: config.Clusters[config.Default].Token,
 		TLSClientConfig: rest.TLSClientConfig{
-			CAData: cadata,
+			CAData: []byte(config.Clusters[config.Default].CAData),
 		},
 	}
 
