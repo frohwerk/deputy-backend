@@ -1,3 +1,7 @@
+# Offene Punkte
+
+1. Wie mit Images umgehen, die mehrere Container enthalten?
+
 # Cloud Foundry
 
 Audit events help Cloud Foundry operators monitor actions taken against resources (such as apps) via user or system actions:
@@ -67,5 +71,70 @@ $ oc policy add-role-to-user -n myproject view system:serviceaccount:myproject:d
 https://docs.openshift.com/container-platform/3.11/dev_guide/service_accounts.html
 https://docs.okd.io/3.11/admin_guide/manage_users.html
 
-### NEXT TODO:
+### TODO:
 Check out oc certificatesigningrequests command. Maybe we can create trusted certifcates that way?
+
+### Importer draft
+
+database:
+- add resourceVersion column to components?
+
+importer:
+- 
+
+```bash
+$ curl http://ocrproxy-myproject.192.168.178.31.nip.io/v2/myproject/ocrproxy/tags/list
+{"name":"myproject/ocrproxy","tags":["latest"]}
+```
+
+```bash
+curl -GLs -H "Authorization: Bearer %DRT%" "https://registry-1.docker.io/v2/adoptopenjdk/openjdk11/tags/list"
+```
+
+Watch Pods...
+
+After pod change:
+1. GET pod owner (replicaset)
+2. GET replicaset owner (deployment)
+
+...OR...
+
+deployment.spec.selector. 
+
+### Events emitted when a new deployment is created:
+
+Q: Is object.objectMetadata.uid stable related to a resource?
+A: Yes
+
+1. ADDED apps.Deployment
+   - spec.containers[n].image contains image link
+   - status.replicas|updatedreplicas|readyreplicas|availablereplicas|unavailablereplicas is zero
+2. MODIFIED apps.Deployment
+3. MODIFIED apps.Deployment
+   - status.unavailablereplicas: 0 -> 1
+4. ADDED core.Pod
+   - object.objectmetadata.labels match the Deployment.Spec.PodTemplate
+   - containers[n].image contains image link
+   - status.phase=Pending
+5. MODIFIED core.Pod
+6. MODIFIED core.Pod
+7. MODIFIED apps.Deployment
+   - replicas|updatedreplicas: 0 -> 1
+8. MODIFIED core.Pod
+   - status.phase: Pending -> Running
+9. MODIFIED apps.Deployment
+   - readyreplicas: 0 -> 1
+   - availablereplicas: 0 -> 1
+   - unavailablereplicas: 1 -> 0
+
+How to handle these events:
+- New deployment created -> Create Component entry (image = null)
+- Pod reaches Running phase -> Update Component set image = status.containerStatus[n].imageid
+
+### Useful attributes of Deployment and Pod
+
+- `[apps.Deployment] .status.*replicas` are counters representing the number of replicas in specific states
+- `[apps.Deployment] .spec.containers[n].image` contains image link
+- `[core.Pod] .status.containerStatuses[n].image` contains image link
+- `[apps.Deployment] .spec.selector.matchLabels` contains matching labels
+- `[core.Pod] .objectmeta.labels` contains matching labels

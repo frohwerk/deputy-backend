@@ -3,17 +3,23 @@ package database
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	"github.com/frohwerk/deputy-backend/internal/util"
+	"github.com/google/uuid"
 )
 
 type Component struct {
-	Id    string
-	Name  string
-	Image string
+	Id      string
+	Name    string
+	Image   string
+	Version string
+	Updated time.Time
 }
 
 type ComponentStore interface {
+	Create(string) (*Component, error)
+	SetImage(string, string) error
 	ListAll() ([]Component, error)
 	ListUnassigned() ([]Component, error)
 	ListForApp(id string) ([]Component, error)
@@ -25,6 +31,26 @@ type componentStore struct {
 
 func NewComponentStore(db *sql.DB) *componentStore {
 	return &componentStore{db}
+}
+
+func (s *componentStore) Create(name string) (*Component, error) {
+	n := &Component{}
+	row := s.db.QueryRow(`INSERT INTO components (id, name) VALUES($1, $2) RETURNING id, name, updated`, uuid.NewString(), name)
+	if err := row.Scan(&n.Id, &n.Name, &n.Updated); err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (s *componentStore) SetImage(name string, image string) error {
+	if _, err := s.db.Exec(`UPDATE components SET image = $2 WHERE name = $1`, name, image); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *componentStore) GetByName(name string) (*Component, error) {
+	return nil, nil
 }
 
 func (s *componentStore) ListAll() ([]Component, error) {
@@ -64,4 +90,8 @@ func fetchComponents(rows *sql.Rows) ([]Component, error) {
 		components = append(components, c)
 	}
 	return components, nil
+}
+
+func (c Component) modified(other Component) bool {
+	return true
 }

@@ -5,3 +5,6 @@ localhost.session.sql
 # Build output
 **/__debug_bin
 build/
+
+# Temporary files
+temp/

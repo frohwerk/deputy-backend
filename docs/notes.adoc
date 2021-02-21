@@ -1,0 +1,15 @@
+== Cloud Foundry
+Audit events help Cloud Foundry operators monitor actions taken against resources (such as apps) via user or system actions:
+https://docs.cloudfoundry.org/running/managing-cf/audit-events.html
+
+== Development environment
+
+=== Minishift
+
+==== Creating multiple minishift instances
+
+[source,shell]
+----
+$ minishift profile set <name>
+$ minishift start
+----

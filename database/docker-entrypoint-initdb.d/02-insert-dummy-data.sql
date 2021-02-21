@@ -4,7 +4,7 @@ INSERT INTO apps VALUES
   ('4337db1f-cda0-44b0-ad6a-3c749b2dcef2', 'Example Application #3'),
   ('bea8ba7d-45f4-45b2-9ff7-164a8095e065', 'Example Application #4');
 
-INSERT INTO components VALUES
+INSERT INTO components (id, name, image) VALUES
   ('5bcfb531-f113-436b-8c28-81fd9f365856', 'Example Component #1', '172.30.1.1:5000/myproject/example:1.0'),
   ('db56fe67-d013-444b-9022-d0d10117e216', 'Example Component #2', '172.30.1.1:5000/myproject/example:1.0'),
   ('c86a651c-893f-4b8c-afec-ed1466594ba3', 'Example Component #3', '172.30.1.1:5000/myproject/example:1.0'),
