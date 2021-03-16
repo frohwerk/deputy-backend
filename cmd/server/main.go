@@ -10,8 +10,11 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/frohwerk/deputy-backend/cmd/server/artifacts"
+
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/server/components"
+	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 
 	"github.com/frohwerk/deputy-backend/internal"
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -21,9 +24,21 @@ import (
 	"github.com/frohwerk/deputy-backend/pkg/api"
 
 	"github.com/go-chi/chi"
+	"github.com/spf13/cobra"
 
 	_ "github.com/lib/pq"
 )
+
+var (
+	rtbase  string
+	command = &cobra.Command{Run: Run}
+
+	k8s internal.Platform
+)
+
+func init() {
+	command.PersistentFlags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091", "Specify the base-uri for artifactory")
+}
 
 type response struct {
 	EventType string        `json:"eventType"`
@@ -86,9 +101,15 @@ func flush(resp http.ResponseWriter) bool {
 	}
 }
 
-var k8s internal.Platform
-
 func main() {
+	command.Use = os.Args[0]
+	if err := command.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(0)
+	}
+}
+
+func Run(cmd *cobra.Command, args []string) {
 	k, err := kubernetes.WithDefaultConfig()
 	if err != nil {
 		log.Fatalf("error loading kubernetes configuration: %v\n", err)
@@ -101,8 +122,17 @@ func main() {
 	}
 	defer util.Close(db, log.Fatalf)
 
+	rt := artifactory.New(rtbase)
+
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
+
+	eh := &artifacts.EventHandler{
+		Repository:    rt,
+		ArtifactStore: database.NewArtifactStore(db),
+	}
+
+	rt.OnArtifactDeployed(eh.OnArtifactDeployed)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -119,6 +149,7 @@ func main() {
 	mux.Route("/api/components", func(r chi.Router) {
 		r.Get("/", components.List(cs))
 	})
+	mux.Post("/webhooks/artifactory", rt.WebhookHandler)
 	mux.Get("/stream", stream)
 
 	server := http.Server{
@@ -139,7 +170,7 @@ func main() {
 		log.Printf("terminating due to os signal: %v", sig)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

@@ -48,9 +48,9 @@ var (
 	db         *sql.DB
 	components database.ComponentStore
 
+	mutex      = &sync.Mutex{}
 	yamlStdout = yaml.NewEncoder(os.Stdout)
 	eventCount = 0
-	mutex      = &sync.Mutex{}
 )
 
 func main() {
@@ -67,15 +67,13 @@ func main() {
 
 	fmt.Println(config.Clusters[config.Default].CAData)
 
-	clientcfg := &rest.Config{
+	client, err := kubernetes.NewForConfig(&rest.Config{
 		Host:        config.Clusters[config.Default].Host,
 		BearerToken: config.Clusters[config.Default].Token,
 		TLSClientConfig: rest.TLSClientConfig{
 			CAData: []byte(config.Clusters[config.Default].CAData),
 		},
-	}
-
-	client, err := kubernetes.NewForConfig(clientcfg)
+	})
 	if err != nil {
 		log.Fatalf("%s\n", err)
 	}
@@ -119,10 +117,10 @@ func handleEvent(event watch.Event) {
 	switch o := event.Object.(type) {
 	case *apps.Deployment:
 		if event.Type == watch.Added {
-			if c, err := components.Create(o.Name); err != nil {
-				log.Printf("ERROR failed to create component '%s': %s\n", o.Name, err)
+			if c, err := components.CreateIfAbsent(o.Name); err != nil {
+				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
-				log.Printf("TRACE component '%s' created with id '%s'\n", o.Name, c.Id)
+				log.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
 			}
 		}
 		if trace {
@@ -137,10 +135,10 @@ func handleEvent(event watch.Event) {
 		}
 		if app, ok := o.ObjectMeta.Labels["app"]; ok && o.Status.Phase == core.PodRunning {
 			imageid := o.Status.ContainerStatuses[0].ImageID
-			if err := components.SetImage(app, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+			if c, err := components.SetImage(app, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
 				log.Printf("ERROR Failed to update image for component %s: %s\n", app, err)
 			} else {
-				log.Printf("TRACE Updated image for component %s to %s\n", app, imageid)
+				log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 			}
 		} else {
 			fmt.Printf("Pod %s has no app label, cannot find matching deployment\n", o.Name)

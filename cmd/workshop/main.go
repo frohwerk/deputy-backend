@@ -1,42 +1,30 @@
 package main
 
 import (
-	"database/sql"
-	"io"
-	"log"
+	"fmt"
+	"os"
 
-	_ "github.com/lib/pq"
+	"github.com/spf13/cobra"
 )
 
-type application struct {
-	id   string
-	name string
+var (
+	stuff string
+
+	workshop = &cobra.Command{Run: run}
+)
+
+func init() {
+	workshop.PersistentFlags().StringVarP(&stuff, "name", "n", "World", "Your name. Or any name. Just hello world things")
 }
 
 func main() {
-	db, err := sql.Open("postgres", "postgres://deputy:!m5i4e3h2e1g@localhost:5432/deputy?sslmode=disable")
-	if err != nil {
-		log.Fatalf("%v\n", err)
-	}
-	defer close(db)
-
-	rows, err := db.Query("SELECT * FROM apps")
-	if err != nil {
-		log.Fatalf("%v\n", err)
-	}
-	defer close(rows)
-
-	for rows.Next() {
-		a := new(application)
-		if err := rows.Scan(&a.id, &a.name); err != nil {
-			log.Fatalf("%v\n", err)
-		}
-		log.Printf("Found row: %s => %s", a.id, a.name)
+	workshop.Use = os.Args[0]
+	if err := workshop.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
-func close(db io.Closer) {
-	if err := db.Close(); err != nil {
-		log.Printf("%v\n", err)
-	}
+func run(cmd *cobra.Command, args []string) {
+	fmt.Printf("Hallo %s!", stuff)
 }

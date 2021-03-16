@@ -2,6 +2,16 @@
 
 1. Wie mit Images umgehen, die mehrere Container enthalten?
 
+# Artifactory
+
+https://www.jfrog.com/confluence/display/JFROG/Webhooks
+
+Webhook Attribute:
+- URL: obvious
+- Event: Selection of events for the specific webhook
+- Secret Token: Used for authentication against the webhook (protect the webhook endpoint against fabricated malicious event messages)
+- Custom Headers: Additional headers to send with the event http request
+
 # Cloud Foundry
 
 Audit events help Cloud Foundry operators monitor actions taken against resources (such as apps) via user or system actions:
@@ -138,3 +148,53 @@ How to handle these events:
 - `[core.Pod] .status.containerStatuses[n].image` contains image link
 - `[apps.Deployment] .spec.selector.matchLabels` contains matching labels
 - `[core.Pod] .objectmeta.labels` contains matching labels
+
+### Loading images from the registry:
+
+Using:
+https://github.com/distribution/distribution/tree/v2.7.1/registry/client
+https://pkg.go.dev/github.com/distribution/distribution@v2.7.1+incompatible/registry/client
+
+1. Fetch manifest
+-> Problem: UnmarshalFunc nicht registriert in Standard-Konfiguration...
+-> Nope: Just use the manifest types in your code, an init function configures the UnmarshalFunc when a type is used
+2. Fetch and analyze layers
+-> OPEN: How to handle whiteouts in layers (example: .wh..wh..opq)
+-> See spec: https://github.com/opencontainers/image-spec/blob/master/layer.md#whiteouts
+
+IDEA #1: Put source references as text files into the image itself
+IDEA #2: Build smart analyzers (later?) for specific types of images
+
+###
+
+ifs:
+app.js  1
+lib.js  2
+
+ofs:
+/etc/app.js  1
+/app/app.js  1
+/app/lib.js  2
+
+1. indexFile := app.js 1 (shortest path, sorting irrelevant)
+2. dirs := ofs.find(app.js 1) => dirs = ['/etc', '/app']
+3. for each dir := range dirs
+   if dir.contains(ifs) return true
+
+dir.contains: Paths, filenames and hashes must match
+
+------------------------
+
+for each archive:
+  search archive by name, digest in images
+  if found return image
+
+  search largest file by relative path & digest in images
+  if not found remove image from candidates list
+  search second largest file by relative path & digest in images
+  ...until all files have been found
+
+  TODO: Handle identical files in different locations, see filesystem_test.go
+
+
+path_suffix: the relative path of the file

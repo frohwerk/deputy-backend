@@ -5,21 +5,22 @@ import (
 	"log"
 	"time"
 
+	"github.com/frohwerk/deputy-backend/internal/database/sqlstate"
 	"github.com/frohwerk/deputy-backend/internal/util"
-	"github.com/google/uuid"
 )
 
 type Component struct {
 	Id      string
 	Name    string
-	Image   string
-	Version string
 	Updated time.Time
+	Version string
+	Image   string
 }
 
 type ComponentStore interface {
 	Create(string) (*Component, error)
-	SetImage(string, string) error
+	CreateIfAbsent(string) (*Component, error)
+	SetImage(string, string) (*Component, error)
 	ListAll() ([]Component, error)
 	ListUnassigned() ([]Component, error)
 	ListForApp(id string) ([]Component, error)
@@ -34,53 +35,80 @@ func NewComponentStore(db *sql.DB) *componentStore {
 }
 
 func (s *componentStore) Create(name string) (*Component, error) {
-	n := &Component{}
-	row := s.db.QueryRow(`INSERT INTO components (id, name) VALUES($1, $2) RETURNING id, name, updated`, uuid.NewString(), name)
-	if err := row.Scan(&n.Id, &n.Name, &n.Updated); err != nil {
-		return nil, err
-	}
-	return n, nil
+	return s.selectComponent(`
+		INSERT INTO components (name)
+		VALUES ($1)
+		RETURNING id, name, updated, COALESCE(version, ''), COALESCE(image, '')
+	`, name)
 }
 
-func (s *componentStore) SetImage(name string, image string) error {
-	if _, err := s.db.Exec(`UPDATE components SET image = $2 WHERE name = $1`, name, image); err != nil {
-		return err
+func (s *componentStore) CreateIfAbsent(name string) (*Component, error) {
+	c, err := s.Create(name)
+	switch {
+	case sqlstate.UniqueViolation(err):
+		return s.GetByName(name)
+	case err != nil:
+		return nil, err
+	default:
+		return c, nil
 	}
-	return nil
+}
+
+func (s *componentStore) SetImage(name string, image string) (*Component, error) {
+	return s.selectComponent(`
+		UPDATE components
+		SET image = $2
+		WHERE name = $1
+		RETURNING id, name, updated, COALESCE(version, ''), COALESCE(image, '')
+	`, name, image)
 }
 
 func (s *componentStore) GetByName(name string) (*Component, error) {
-	return nil, nil
+	return s.selectComponent(`
+		SELECT id, name, updated, COALESCE(version, ''), COALESCE(image, '')
+		FROM components
+		WHERE name = $1
+	`, name)
 }
 
 func (s *componentStore) ListAll() ([]Component, error) {
-	rows, err := s.db.Query(`SELECT * FROM components c`)
-	if err != nil {
-		return nil, err
-	}
-	defer util.Close(rows, log.Printf)
-	return fetchComponents(rows)
+	return s.selectComponents(`
+		SELECT id, name, updated, COALESCE(version, ''), COALESCE(image, '')
+		FROM components
+	`)
 }
 
 func (s *componentStore) ListUnassigned() ([]Component, error) {
-	rows, err := s.db.Query(`SELECT * FROM components c WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id)`)
-	if err != nil {
-		return nil, err
-	}
-	defer util.Close(rows, log.Printf)
-	return fetchComponents(rows)
+	return s.selectComponents(`
+		SELECT id, name, updated, COALESCE(version, ''), COALESCE(image, '')
+		FROM components c
+	  	WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id)
+	`)
 }
 
 func (s *componentStore) ListForApp(id string) ([]Component, error) {
-	rows, err := s.db.Query(`SELECT c.* FROM apps_components ac JOIN components c ON c.ID = ac.component_id WHERE app_id = $1`, id)
+	return s.selectComponents(`
+		SELECT c.id, c.name, c.updated, COALESCE(c.version, ''), COALESCE(c.image, '')
+		FROM components c
+	  	WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id)
+	`)
+}
+
+func (s *componentStore) selectComponent(query string, args ...interface{}) (*Component, error) {
+	row := s.db.QueryRow(query, args...)
+	c := &Component{}
+	if err := row.Scan(&c.Id, &c.Name, &c.Updated, &c.Version, &c.Image); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func (s *componentStore) selectComponents(query string, args ...interface{}) ([]Component, error) {
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer util.Close(rows, log.Printf)
-	return fetchComponents(rows)
-}
-
-func fetchComponents(rows *sql.Rows) ([]Component, error) {
 	components := make([]Component, 0)
 	for rows.Next() {
 		c := Component{}

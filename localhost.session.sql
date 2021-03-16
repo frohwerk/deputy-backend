@@ -10,4 +10,6 @@ SELECT * FROM apps_components JOIN components on components.id = apps_components
 SELECT * FROM components c WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id);
 
 DELETE FROM components WHERE name in ('node-hello-world', 'ocrproxy');
-SELECT * FROM components;
+
+DELETE FROM artifacts;
+SELECT * FROM artifacts;
