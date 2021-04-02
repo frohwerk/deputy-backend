@@ -7,7 +7,7 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/fs"
 )
 
-func FromTarReader(name string, tr *tar.Reader) (*fs.FileSystemDigests, error) {
+func FromTarReader(name string, tr *tar.Reader) (*fs.FileSystemInfo, error) {
 	return fs.FromFilesystem(name, newTarFs(tr))
 }
 

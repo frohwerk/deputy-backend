@@ -37,7 +37,7 @@ var (
 )
 
 func init() {
-	command.PersistentFlags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091", "Specify the base-uri for artifactory")
+	command.PersistentFlags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091/libs-release-local", "Specify the base-uri for artifactory")
 }
 
 type response struct {
@@ -128,8 +128,8 @@ func Run(cmd *cobra.Command, args []string) {
 	cs := database.NewComponentStore(db)
 
 	eh := &artifacts.EventHandler{
-		Repository:    rt,
-		ArtifactStore: database.NewArtifactStore(db),
+		Repository: rt,
+		FileStore:  database.NewFileStore(db),
 	}
 
 	rt.OnArtifactDeployed(eh.OnArtifactDeployed)

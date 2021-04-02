@@ -34,16 +34,13 @@ CREATE TABLE apps_components (
     FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE
 );
 
-DROP TABLE IF EXISTS artifacts;
-CREATE TABLE artifacts (
-    artifact_id VARCHAR(71) NOT NULL,
-    artifact_name VARCHAR(4096) NOT NUlL,
-    PRIMARY KEY (artifact_id)
-);
-
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (
+    file_id VARCHAR(36) NOT NULL,
     file_digest VARCHAR(71) NOT NULL,
     file_path VARCHAR(4096) NOT NULL,
-    PRIMARY KEY (file_digest, file_path)
+    file_parent VARCHAR(36) DEFAULT NULL,
+    PRIMARY KEY (file_id),
+    UNIQUE (file_digest, file_path),
+    FOREIGN KEY (file_parent) REFERENCES files(file_id) ON DELETE CASCADE
 );

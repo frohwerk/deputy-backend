@@ -1,30 +1,25 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"database/sql"
+	"log"
 
-	"github.com/spf13/cobra"
+	"github.com/frohwerk/deputy-backend/internal/database"
 )
-
-var (
-	stuff string
-
-	workshop = &cobra.Command{Run: run}
-)
-
-func init() {
-	workshop.PersistentFlags().StringVarP(&stuff, "name", "n", "World", "Your name. Or any name. Just hello world things")
-}
 
 func main() {
-	workshop.Use = os.Args[0]
-	if err := workshop.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	db, err := sql.Open("postgres", "postgres://deputy:!m5i4e3h2e1g@localhost:5432/deputy?sslmode=disable")
+	if err != nil {
+		log.Fatalf("%v\n", err)
 	}
-}
-
-func run(cmd *cobra.Command, args []string) {
-	fmt.Printf("Hallo %s!", stuff)
+	defer db.Close()
+	store := database.NewFileStore(db)
+	f := &database.File{Name: "/app/main.js", Digest: "sha256:76a7059dc31c6bec6d0597bc500a093d4d5d914c35f83dcf58703abf2e6c1fe6"}
+	archives, err := store.FindByContent(f)
+	if err != nil {
+		log.Fatalf("%v\n", err)
+	}
+	for _, a := range archives {
+		log.Printf("Found archive %s (%s) containing file %s", a.Name, a.Id, f.Name)
+	}
 }

@@ -9,16 +9,16 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-type FileSystemDigests struct {
+type FileSystemInfo struct {
 	Name        string
 	Digest      string
 	FileNames   map[string][]string
 	FileDigests map[string]string
 }
 
-func FromFilesystem(name string, f FileSystem) (*FileSystemDigests, error) {
+func FromFilesystem(name string, f FileSystem) (*FileSystemInfo, error) {
 	nd := make([]string, 0)
-	fs := &FileSystemDigests{
+	fs := &FileSystemInfo{
 		Name:        name,
 		FileDigests: make(map[string]string),
 		FileNames:   make(map[string][]string),

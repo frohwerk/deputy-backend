@@ -198,3 +198,53 @@ for each archive:
 
 
 path_suffix: the relative path of the file
+
+Simple use case
+===============
+Image:
+- /app/app.js
+- /app/lib/util.js
+- /app/other.txt
+- /var/opt/stuff.txt
+
+Archive:
+- app.js
+- lib/util.js
+
+Found at different location
+===========================
+Image:
+- /app/app.js
+- /lib/util.js
+- /var/opt/stuff.txt
+
+Archive:
+- app.js
+- lib/util.js
+
+Whiteouts in Docker Images
+==========================
+- Remove all children with a specific prefix (example: file /etc/stuff/test.txt):
+  empty file named '/etc/stuff/.wh.test' to remove a 
+- Remove all children within a directory:
+  empty file named '/path/.wh..wh..opq' (opaque whiteout)
+
+Experiment #1
+-------------
+```Dockerfile
+FROM alpine:13.3
+ADD test.txt /etc/stuff/
+```
+Results in layer:
+- /etc/stuff/.wh..wh..opq
+- /etc/stuff/test.txt
+
+Experiment #2
+-------------
+Note: Base image 'temp' is the result of Experiment #1
+```Dockerfile
+FROM temp
+RUN rm -rf /etc/stuff
+```
+Results in layer:
+- /etc/.wh.stuff

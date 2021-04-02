@@ -7,7 +7,7 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/fs"
 )
 
-func FromZipReader(name string, zr *zip.Reader) (*fs.FileSystemDigests, error) {
+func FromZipReader(name string, zr *zip.Reader) (*fs.FileSystemInfo, error) {
 	return fs.FromFilesystem(name, &zipFileSystem{zr: zr, i: 0, len: len(zr.File)})
 }
 

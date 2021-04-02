@@ -1,0 +1,25 @@
+@startuml Datenmodell
+
+skinparam Monochrome true
+skinparam Shadowing false
+skinparam Linetype ortho
+
+skinparam MinClassWidth 200
+
+hide circle
+hide empty methods
+hide empty attributes
+
+class File {
+    id: string
+    path: string
+    digest: string
+}
+
+class Archive {
+}
+
+File <|-- Archive
+File --o Archive
+
+@enduml
