@@ -41,8 +41,7 @@ func TestStuff(t *testing.T) {
 	assert.Equal(t, "test-1.zip", fs1.Name)
 	assert.Equal(t, "test-2.zip", fs2.Name)
 	assert.Equal(t, fs1.Digest, fs2.Digest)
-	assert.Equal(t, fs1.FileDigests, fs2.FileDigests)
-	assert.Equal(t, fs1.FileNames, fs2.FileNames)
+	assert.Equal(t, fs1.Files, fs2.Files)
 }
 
 func f(name string) string {

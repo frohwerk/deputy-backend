@@ -7,15 +7,19 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/fs"
 )
 
-func FromTarReader(name string, tr *tar.Reader) (*fs.FileSystemInfo, error) {
-	return fs.FromFilesystem(name, newTarFs(tr))
+func FromTarReader(name string, tr *tar.Reader) (*fs.Archive, error) {
+	fsi, err := fs.FromIterator(newTarFsIterator(tr))
+	if err != nil {
+		return nil, err
+	}
+	return &fs.Archive{Name: name, FileSystemInfo: fsi}, nil
 }
 
 type tarFileSystem struct {
 	tr *tar.Reader
 }
 
-func newTarFs(tr *tar.Reader) fs.FileSystem {
+func newTarFsIterator(tr *tar.Reader) fs.FileSystemIterator {
 	return &tarFileSystem{tr}
 }
 

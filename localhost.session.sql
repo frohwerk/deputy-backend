@@ -15,6 +15,7 @@ DELETE FROM components WHERE name in ('node-hello-world', 'ocrproxy');
 DELETE FROM files;
 
 SELECT * FROM files;
+DELETE FROM files WHERE file_parent = 'e3387ae8-aa20-47bb-9b37-83966425628f' AND file_path like 'META-INF%';
 SELECT * FROM components c WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id);
 
 -- TODO: Add to init script

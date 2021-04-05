@@ -29,25 +29,27 @@ func (h *EventHandler) OnArtifactDeployed(i *artifactory.ArtifactInfo) error {
 		return err
 	}
 	defer r.Close()
-	fsd, err := read(i.Name, r)
+	archive, err := read(i.Name, r)
 	if err != nil {
 		return err
 	}
-	archive, err := h.CreateIfAbsent(&database.File{Digest: fsd.Digest, Name: fsd.Name})
+	entity, err := h.CreateIfAbsent(&database.File{Digest: archive.Digest, Name: archive.Name})
 	if err != nil {
 		return err
 	}
-	for name, dgst := range fsd.FileDigests {
-		if _, err := h.CreateIfAbsent(&database.File{Digest: dgst, Name: name, Parent: archive.Id}); err != nil {
+	for _, f := range archive.Files {
+		if _, err := h.CreateIfAbsent(&database.File{Name: f.Name, Digest: f.Digest, Parent: entity.Id}); err != nil {
 			return err
 		}
 	}
-	log.Printf("Archive registered: %s", archive)
+	log.Printf("Archive registered: %s", entity)
 	return nil
 }
 
-func read(name string, r io.ReadCloser) (*fs.FileSystemInfo, error) {
+func read(name string, r io.ReadCloser) (*fs.Archive, error) {
 	switch {
+	case strings.HasSuffix(name, ".jar"):
+		return readZip(name, r)
 	case strings.HasSuffix(name, ".zip"):
 		return readZip(name, r)
 	case strings.HasSuffix(name, ".tar.gz"):
@@ -57,7 +59,7 @@ func read(name string, r io.ReadCloser) (*fs.FileSystemInfo, error) {
 	}
 }
 
-func readZip(name string, r io.ReadCloser) (*fs.FileSystemInfo, error) {
+func readZip(name string, r io.ReadCloser) (*fs.Archive, error) {
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -69,7 +71,7 @@ func readZip(name string, r io.ReadCloser) (*fs.FileSystemInfo, error) {
 	return zipfs.FromZipReader(name, zr)
 }
 
-func readTarGz(name string, r io.ReadCloser) (*fs.FileSystemInfo, error) {
+func readTarGz(name string, r io.ReadCloser) (*fs.Archive, error) {
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err

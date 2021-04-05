@@ -6,99 +6,82 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
+	"strings"
 
-	tarfs "github.com/frohwerk/deputy-backend/cmd/server/fs/tar"
-
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/reference"
 	"github.com/frohwerk/deputy-backend/cmd/server/fs"
+	"github.com/frohwerk/deputy-backend/cmd/server/images"
 	"github.com/opencontainers/go-digest"
 )
 
-var _ fs.FileSystem = &image{}
-
-type ImageRepository struct {
-	distribution.ManifestService
-	distribution.BlobProvider
-}
-
-func (r *ImageRepository) FromImage(ctx context.Context, d digest.Digest) (*fs.FileSystemInfo, error) {
-	m, err := r.ManifestService.Get(ctx, d)
+func FromImage(ref string, registry images.Registry) (*fs.Archive, error) {
+	archive := &fs.Archive{Name: ref, FileSystemInfo: &fs.FileSystemInfo{Files: make(fs.FileSlice, 0)}}
+	named, err := reference.ParseNamed(ref)
 	if err != nil {
 		return nil, err
 	}
-	switch m := m.(type) {
-	case *schema2.DeserializedManifest:
-		return r.fromManifestV2(ctx, m)
-	default:
-		return nil, fmt.Errorf("Unsupported manifest type: %T", m)
+	repository, err := registry.Repository(named)
+	if err != nil {
+		return nil, err
 	}
-}
+	m, err := repository.Manifest(context.TODO(), named)
+	if err != nil {
+		return nil, err
+	}
 
-// TODO: Modify function to create a FileSystemInfo (maybe? or more like imgmatch?)
-func (repo *ImageRepository) fromManifestV2(ctx context.Context, m *schema2.DeserializedManifest) (*fs.FileSystemInfo, error) {
-	img := &image{}
-	// Possible optimization: iterate in reverse order, remember whiteouts and skip matching entries in lower layers
-	for _, layer := range m.Layers {
-		r, err := repo.BlobProvider.Open(ctx, layer.Digest)
-		if err != nil {
-			return nil, err
-		}
-		defer r.Close()
-
-		gzr, err := gzip.NewReader(r)
-		if err != nil {
-			return nil, err
-		}
-		defer gzr.Close()
-
-		tfs, err := tarfs.FromTarReader(layer.Digest.String(), tar.NewReader(gzr))
-		if err != nil {
-			return nil, err
-		}
-
-		for name, digest := range tfs.FileDigests {
-			img.files = append(img.files, file{name, digest})
+	for _, ref := range m.References() {
+		switch ref.MediaType {
+		case "application/vnd.docker.container.image.v1+json":
+			continue
+		case "application/vnd.docker.image.rootfs.diff.tar.gzip":
+			reader, err := repository.Blob(context.TODO(), ref.Digest)
+			if err != nil {
+				return nil, err
+			}
+			err = mergeLayer(archive, reader)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		default:
+			return nil, fmt.Errorf("Unsupported media type in manifest: %s", ref.MediaType)
 		}
 	}
-	// Sort to simplify matching later
-	sort.Slice(img.files, func(i, j int) bool { return img.files[i].name < img.files[j].name })
-	return nil, nil
+	return archive, nil
 }
 
-type file struct {
-	name   string
-	digest string
+func mergeLayer(archive *fs.Archive, reader io.ReadSeekCloser) error {
+	gzr, err := gzip.NewReader(reader)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close()
+	tr := tar.NewReader(gzr)
+	for header, err := tr.Next(); err != io.EOF; header, err = tr.Next() {
+		if err != nil {
+			return err
+		}
+		if header.FileInfo().IsDir() {
+			continue
+		}
+		n := fmt.Sprintf("/%s", strings.TrimPrefix(strings.TrimPrefix(header.Name, "."), "/"))
+		d, err := digest.FromReader(tr)
+		if err != nil {
+			return err
+		}
+		f := fs.File{Name: n, Digest: d.String()}
+		b := f.Base()
+		switch {
+		case b == ".wh..wh..opq":
+			// Deletes the directory itself, this does not match the Image Spec behavior
+			// It is okay here, because we are not interested in empty directories
+			archive.Files = archive.Files.Delete(f.Path())
+		case strings.HasPrefix(b, ".wh."):
+			archive.Files = archive.Files.Delete(fmt.Sprintf("%s%s", f.Path(), strings.TrimPrefix(b, ".wh.")))
+		default:
+			fmt.Printf("Adding file %s to image\n", n)
+			archive.Files = append(archive.Files, f)
+		}
+	}
+	return nil
 }
-
-type image struct {
-	files []file
-}
-
-func (img *image) Next() (*fs.FileSystemEntry, error) {
-	return nil, io.EOF
-}
-
-// type image struct {
-// 	ImageRepository
-// 	layers []distribution.Descriptor
-// 	reader distribution.ReadSeekCloser
-// 	nextLayer int
-// }
-
-// func (img *image) Next() (*fs.FileSystemEntry, error) {
-// 	var err error
-// 	if img.reader == nil {
-// 		img.reader, err = img.ImageRepository.BlobProvider.Open(context.TODO(), img.layers[img.nextLayer].Digest)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		img.nextLayer++
-// 	}
-// 	// if img.nextLayer > len(img.layers)-1 {
-// 	// 	return nil, io.EOF
-// 	// }
-// 	return nil, io.EOF
-// }

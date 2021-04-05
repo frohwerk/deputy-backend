@@ -13,11 +13,6 @@ type File struct {
 
 type FileSlice []File
 
-// A File matches another File when digests and file names (ignoring the path) are equal
-func (f *File) Matches(ref *File) bool {
-	return f.digest == ref.digest && filepath.Base(f.name) == filepath.Base(ref.name)
-}
-
 // Returns the Path of the file. Empty if the file pointer is nil or the name attribute is empty
 func (f *File) Path() string {
 	switch {
@@ -34,6 +29,9 @@ func (f *File) Path() string {
 	}
 }
 
+// Returns the last element of the path. Trailing separators are removed.
+// If the reference is nil Base returns an empty string.
+// If the file name is empty it returns "."
 func (f *File) Base() string {
 	switch {
 	case f == nil:
@@ -41,18 +39,6 @@ func (f *File) Base() string {
 	default:
 		return filepath.Base(f.name)
 	}
-}
-
-func (files FileSlice) Search(ref *File) (int, bool) {
-	if ref == nil {
-		return -1, false
-	}
-	for i, f := range files {
-		if f.Matches(ref) {
-			return i, true
-		}
-	}
-	return -1, false
 }
 
 // Delete all entries with the specified prefix

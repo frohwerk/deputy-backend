@@ -48,7 +48,8 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	repo, err := reg.Repo("myproject/node-hello-world")
+	// repo, err := reg.Repo("myproject/node-hello-world")
+	repo, err := reg.Repo("myproject/jetty-hello-world")
 	if err != nil {
 		return err
 	}
@@ -58,7 +59,10 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ms.Get(ctx, digest.Digest("sha256:3bf137c335a2f7f9040eef6c2093abaa273135af0725fdeea5c4009a695d840f"))
+	// node-hello-world
+	// m, err := ms.Get(ctx, digest.Digest("sha256:3bf137c335a2f7f9040eef6c2093abaa273135af0725fdeea5c4009a695d840f"))
+	// jetty-hello-world
+	m, err := ms.Get(ctx, digest.Digest("sha256:f1966dbfe1d5af2f0fe5779025368aa42883ba7a188a590f64b964e0fd01eeb3"))
 	if err != nil {
 		return err
 	}
@@ -74,7 +78,7 @@ func run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		for _, f := range a {
-			fmt.Println(f.Name)
+			fmt.Printf("%s %s %s\n", f.Id, f.Name, f.Digest)
 		}
 	default:
 		return fmt.Errorf("Unsupported manifest type: %T", m)
@@ -165,12 +169,16 @@ func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup databa
 		// Match using archive file contents
 	archiveloop:
 		for _, archive := range archives {
+			if scanned.contains(archive.Id) {
+				continue archiveloop
+			}
 			sort.Sort(archive.Files)
 			if archive.Files[0].Digest != f.digest {
 				return nil, fmt.Errorf("the first item in the archive should match the first matching file in the directory")
 			}
 			for j, k := 0, i+matches; j < len(archive.Files) && k < len(fs); {
-				path := fs[k].Path()
+				// TODO: path should be set for the first match only! everything else should be relative to this path
+				path := strings.TrimSuffix(fs[k].name, archive.Files[j].Name)
 				name := fmt.Sprintf("%s%s", path, archive.Files[j].Name)
 				fmt.Printf("Matching file %s with %s\n", name, fs[k].name)
 				switch {
@@ -185,6 +193,7 @@ func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup databa
 				default:
 					fmt.Printf("Found file %s at path %s\n", archive.Files[j].Name, path)
 					matches++
+					k++
 					j++
 				}
 			}
@@ -192,7 +201,7 @@ func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup databa
 				fmt.Printf("Found all files, the archive '%s' is a match\n", archive.Id)
 				scanned.put(archive.Id)
 				if matches > strength {
-					strength = matches
+					strength, matches = matches, 0
 					result = []database.File{archive.File}
 				} else {
 					fmt.Printf("Ignoring archive '%s', since '%s' is a better match\n", archive.Id, result[0].Id)

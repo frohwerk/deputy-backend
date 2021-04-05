@@ -7,18 +7,22 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/fs"
 )
 
-func FromZipReader(name string, zr *zip.Reader) (*fs.FileSystemInfo, error) {
-	return fs.FromFilesystem(name, &zipFileSystem{zr: zr, i: 0, len: len(zr.File)})
+func FromZipReader(name string, zr *zip.Reader) (*fs.Archive, error) {
+	fsi, err := fs.FromIterator(&zipFsIterator{zr: zr, i: 0, len: len(zr.File)})
+	if err != nil {
+		return nil, err
+	}
+	return &fs.Archive{Name: name, FileSystemInfo: fsi}, nil
 }
 
-type zipFileSystem struct {
-	zr   *zip.Reader
+type zipFsIterator struct {
 	i    int
 	len  int
+	zr   *zip.Reader
 	prev io.Closer
 }
 
-func (zfs *zipFileSystem) Next() (*fs.FileSystemEntry, error) {
+func (zfs *zipFsIterator) Next() (*fs.FileSystemEntry, error) {
 	if zfs.prev != nil {
 		zfs.prev.Close()
 	}

@@ -248,3 +248,19 @@ RUN rm -rf /etc/stuff
 ```
 Results in layer:
 - /etc/.wh.stuff
+
+Docker images built by jib-maven-plugin
+=======================================
+Missing files (created by maven-jar-plugin):
+- META-INF/MANIFEST.MF
+- META-INF/maven/de.frohwerk/hello-world/pom.properties
+- META-INF/maven/de.frohwerk/hello-world/pom.xml
+
+Layer n:
+- /app/classes
+
+Layer n-1:
+- /app/resources
+
+Layer n-2:
+- app\libs

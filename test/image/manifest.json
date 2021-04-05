@@ -1,0 +1,51 @@
+{
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "config": {
+       "mediaType": "application/vnd.docker.container.image.v1+json",
+       "size": 1801,
+       "digest": "sha256:0bec83099217b0784b60488337d97faf2d9c85d220248bd7a8f1e402b25a729c"
+    },
+    "layers": [
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 652806,
+          "digest": "sha256:60775238382ed8f096b163a652f5457589739d65f1395241aba12847e7bdc2a1"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 7334195,
+          "digest": "sha256:8d239582974e6d64dcbc4cb99002943f7af883317dc16c9b19ab04b5b9b2c73d"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 643660,
+          "digest": "sha256:e708be98c58f6bb27bf2b7839d7e63ad5be667b1585c6142af4d3dbbe80a7330"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 4549391,
+          "digest": "sha256:f17daab2ad826a35e2ad46bddc8f19719ad37d348a2213ab82041630a8ea21aa"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 59741782,
+          "digest": "sha256:febab311d432377a68e537dfd16a83a185e9fc214e9b509afea0d5e9e8154053"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 2159832,
+          "digest": "sha256:714453066ddf1f2af9d71c34b65e0f6200a5183a57c18deed63bf7c77b599bbd"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 149,
+          "digest": "sha256:3a25aa7cec0a27c7a87e3d08230cc69015698cbee90dcf3348460ab1351e08b5"
+       },
+       {
+          "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+          "size": 1155,
+          "digest": "sha256:5216c3c29ac4e62b214874a54a0125476beb1ee475d91a93444af351763c4629"
+       }
+    ]
+ }
