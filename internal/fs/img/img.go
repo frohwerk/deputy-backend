@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/frohwerk/deputy-backend/cmd/server/fs"
 	"github.com/frohwerk/deputy-backend/cmd/server/images"
+	"github.com/frohwerk/deputy-backend/internal/fs"
 	"github.com/opencontainers/go-digest"
 )
 

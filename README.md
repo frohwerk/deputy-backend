@@ -1,4 +1,8 @@
-## cmd/deployment - usage
+## cmd/watch
+
+Command line utility that watches deployments on a kubernetes namespace and writes a yaml file for each event. The file names contain a leading counter - padded with zeroes to the length of five - and the name of the deployment object. An output directory must be specified when the program is started. For details see `watch --help`
+
+## cmd/importer - usage
 
 Requires a configuration file `$HOME/.deputy`. Contains configuration data for clusters, including: a logical name, the base uri of the API server, the serviceaccount name and API token, and the certificates of trusted authorities for TLS connection to the cluster
 

@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/distribution/distribution/registry/api/errcode"
-	imgfs "github.com/frohwerk/deputy-backend/cmd/server/fs/img"
 	"github.com/frohwerk/deputy-backend/cmd/server/images"
+	imgfs "github.com/frohwerk/deputy-backend/internal/fs/img"
 	"github.com/stretchr/testify/assert"
 )
 

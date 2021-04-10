@@ -10,8 +10,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/frohwerk/deputy-backend/cmd/server/artifacts"
-
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/server/components"
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
@@ -126,13 +124,6 @@ func Run(cmd *cobra.Command, args []string) {
 
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
-
-	eh := &artifacts.EventHandler{
-		Repository: rt,
-		FileStore:  database.NewFileStore(db),
-	}
-
-	rt.OnArtifactDeployed(eh.OnArtifactDeployed)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {

@@ -1,4 +1,4 @@
-package artifacts
+package main
 
 import (
 	"archive/tar"
@@ -10,9 +10,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/frohwerk/deputy-backend/cmd/server/fs"
-	tarfs "github.com/frohwerk/deputy-backend/cmd/server/fs/tar"
-	zipfs "github.com/frohwerk/deputy-backend/cmd/server/fs/zip"
+	"github.com/frohwerk/deputy-backend/internal/fs"
+	tarfs "github.com/frohwerk/deputy-backend/internal/fs/tar"
+	zipfs "github.com/frohwerk/deputy-backend/internal/fs/zip"
 
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -20,7 +20,7 @@ import (
 
 type EventHandler struct {
 	artifactory.Repository
-	database.FileStore
+	database.FileCreater
 }
 
 func (h *EventHandler) OnArtifactDeployed(i *artifactory.ArtifactInfo) error {
@@ -49,7 +49,7 @@ func (h *EventHandler) OnArtifactDeployed(i *artifactory.ArtifactInfo) error {
 func read(name string, r io.ReadCloser) (*fs.Archive, error) {
 	switch {
 	case strings.HasSuffix(name, ".jar"):
-		return readZip(name, r)
+		fallthrough
 	case strings.HasSuffix(name, ".zip"):
 		return readZip(name, r)
 	case strings.HasSuffix(name, ".tar.gz"):

@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"io"
 
-	"github.com/frohwerk/deputy-backend/cmd/server/fs"
+	"github.com/frohwerk/deputy-backend/internal/fs"
 )
 
 func FromZipReader(name string, zr *zip.Reader) (*fs.Archive, error) {

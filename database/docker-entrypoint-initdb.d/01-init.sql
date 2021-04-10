@@ -44,3 +44,11 @@ CREATE TABLE files (
     UNIQUE (file_digest, file_path),
     FOREIGN KEY (file_parent) REFERENCES files(file_id) ON DELETE CASCADE
 );
+
+DROP TABLE IF EXISTS images_artifacts;
+CREATE TABLE images_artifacts (
+    image VARCHAR(150) NOT NULL,
+    file_id VARCHAR(36) NOT NULL,
+    PRIMARY KEY (image, file_id),
+    FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
+);

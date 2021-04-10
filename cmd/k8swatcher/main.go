@@ -4,12 +4,12 @@ import (
 
 	// "k8s.io/client-go/kubernetes"
 
-	"bufio"
 	"database/sql"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -20,7 +20,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -48,6 +48,8 @@ var (
 	db         *sql.DB
 	components database.ComponentStore
 
+	client kubernetes.Interface
+
 	mutex      = &sync.Mutex{}
 	yamlStdout = yaml.NewEncoder(os.Stdout)
 	eventCount = 0
@@ -67,7 +69,7 @@ func main() {
 
 	fmt.Println(config.Clusters[config.Default].CAData)
 
-	client, err := kubernetes.NewForConfig(&rest.Config{
+	client, err = kubernetes.NewForConfig(&rest.Config{
 		Host:        config.Clusters[config.Default].Host,
 		BearerToken: config.Clusters[config.Default].Token,
 		TLSClientConfig: rest.TLSClientConfig{
@@ -78,33 +80,36 @@ func main() {
 		log.Fatalf("%s\n", err)
 	}
 
-	deploymentsWatch, err := client.AppsV1().Deployments("myproject").Watch(v1.ListOptions{})
+	deploymentsWatch, err := client.AppsV1().Deployments("myproject").Watch(metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("%s\n", err)
 	}
-	podsWatch, err := client.CoreV1().Pods("myproject").Watch(v1.ListOptions{})
+	podsWatch, err := client.CoreV1().Pods("myproject").Watch(metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("%s\n", err)
 	}
 
-	quit := make(chan interface{})
 	deployments := deploymentsWatch.ResultChan()
 	pods := podsWatch.ResultChan()
 
-	go func() {
-		r := bufio.NewReader(os.Stdin)
-		if _, err := r.ReadString('\n'); err != nil {
-			fmt.Printf("WARN  reading stdin failed: %s\n", err)
-		}
-		quit <- struct{}{}
-	}()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	for {
 		select {
-		case <-quit:
-			podsWatch.Stop()
-			deploymentsWatch.Stop()
-			return
+		case sig := <-signals:
+			switch sig {
+			case os.Interrupt:
+				fmt.Println("Received SIGINT")
+				deploymentsWatch.Stop()
+				podsWatch.Stop()
+			case os.Kill:
+				fmt.Println("Received SIGTERM")
+				deploymentsWatch.Stop()
+				podsWatch.Stop()
+			default:
+				fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
+			}
 		case event := <-deployments:
 			handleEvent(event)
 		case event := <-pods:
@@ -133,26 +138,26 @@ func handleEvent(event watch.Event) {
 		if trace {
 			logEvent(event, o.ObjectMeta)
 		}
-		if app, ok := o.ObjectMeta.Labels["app"]; ok && o.Status.Phase == core.PodRunning {
+		if o.Status.Phase == core.PodRunning {
+			name, err := GetName(&o.ObjectMeta)
+			if err != nil {
+				fmt.Printf("error finding name for pod %s: %s\n", o.Name, err)
+				return
+			}
+			if c, err := components.CreateIfAbsent(name); err != nil {
+				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
+			} else {
+				log.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
+			}
 			imageid := o.Status.ContainerStatuses[0].ImageID
-			if c, err := components.SetImage(app, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
-				log.Printf("ERROR Failed to update image for component %s: %s\n", app, err)
+			if c, err := components.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+				log.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
 			} else {
 				log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 			}
-		} else {
-			fmt.Printf("Pod %s has no app label, cannot find matching deployment\n", o.Name)
+			// TODO: scan for matches with registered artifacts
+			// If one artifact matches with multiple versions, use the most precise match (most matched files)
 		}
-		// for _, owner := range o.ObjectMeta.OwnerReferences {
-		// 	if rs, err := client.AppsV1().ReplicaSets("myproject").Get(owner.Name, v1.GetOptions{}); err != nil {
-		// 		log.Printf("ERROR failed to fetch ReplicaSet '%s': %s\n", owner.Name, err)
-		// 	} else {
-		// 		for _, owner := range rs.ObjectMeta.OwnerReferences {
-		// 			owner.Name
-		// 		}
-		// 	}
-		// }
-		// fmt.Printf("Pod %s: %s (%s)\n", o.Name, event.Type, o.Status.Phase)
 	default:
 		printYaml(event)
 	}
@@ -165,7 +170,7 @@ func filename(objectType string, objectName string) string {
 	return fmt.Sprintf(`temp/logs/%04d-%s-%s.yaml`, eventCount, objectType, objectName)
 }
 
-func logEvent(event watch.Event, o v1.ObjectMeta) {
+func logEvent(event watch.Event, o metav1.ObjectMeta) {
 	kind := ""
 	switch event.Object.(type) {
 	case *apps.Deployment:
@@ -231,4 +236,25 @@ func printYaml(e watch.Event) {
 	if err := yamlStdout.Encode(e); err != nil {
 		fmt.Printf("ERROR decoding of watch event failed: %s\n", err)
 	}
+}
+
+func GetName(o *metav1.ObjectMeta) (string, error) {
+	for _, owner := range o.OwnerReferences {
+		switch owner.Kind {
+		case "ReplicaSet":
+			rs, err := client.AppsV1().ReplicaSets(o.Namespace).Get(owner.Name, metav1.GetOptions{})
+			if err != nil {
+				fmt.Println("failed to fetch ReplicaSet", o.Name)
+				fmt.Println(err)
+				continue
+			}
+			return GetName(&rs.ObjectMeta)
+		case "Deployment":
+			return owner.Name, nil
+		default:
+			fmt.Println("Unsupported owner type", owner.Kind)
+			continue
+		}
+	}
+	return o.Name, nil
 }

@@ -23,9 +23,13 @@ type FileLookup interface {
 	FindByParent(string) ([]File, error)
 }
 
-type FileStore interface {
-	Create(f *File) (*File, error)
+type FileCreater interface {
+	// Create(f *File) (*File, error)
 	CreateIfAbsent(f *File) (*File, error)
+}
+
+type FileStore interface {
+	FileCreater
 	FileLookup
 }
 

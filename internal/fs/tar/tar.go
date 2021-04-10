@@ -4,7 +4,7 @@ import (
 	"archive/tar"
 	"strings"
 
-	"github.com/frohwerk/deputy-backend/cmd/server/fs"
+	"github.com/frohwerk/deputy-backend/internal/fs"
 )
 
 func FromTarReader(name string, tr *tar.Reader) (*fs.Archive, error) {
@@ -24,12 +24,15 @@ func newTarFsIterator(tr *tar.Reader) fs.FileSystemIterator {
 }
 
 func (tfs *tarFileSystem) Next() (*fs.FileSystemEntry, error) {
-	h, err := tfs.tr.Next()
-	if err != nil {
-		return nil, err
+	for {
+		h, err := tfs.tr.Next()
+		switch {
+		case err != nil:
+			return nil, err
+		case h.FileInfo().IsDir():
+			continue
+		default:
+			return &fs.FileSystemEntry{Name: strings.TrimPrefix(h.Name, "./"), Reader: tfs.tr}, nil
+		}
 	}
-	return &fs.FileSystemEntry{
-		Name:   strings.TrimPrefix(h.Name, "./"),
-		Reader: tfs.tr,
-	}, nil
 }
