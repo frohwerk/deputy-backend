@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	_ "github.com/lib/pq"
 )
@@ -61,36 +62,25 @@ func main() {
 
 	components = database.NewComponentStore(db)
 
-	config, err := LoadConfig()
-	if err != nil {
-		fmt.Printf("%s\n", err)
-		return
-	}
-
-	fmt.Println(config.Clusters[config.Default].CAData)
-
-	client, err = kubernetes.NewForConfig(&rest.Config{
-		Host:        config.Clusters[config.Default].Host,
-		BearerToken: config.Clusters[config.Default].Token,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAData: []byte(config.Clusters[config.Default].CAData),
-		},
-	})
+	kubeclient, err := LoadKubeconfig()
+	// client, err := LoadClient()
 	if err != nil {
 		log.Fatalf("%s\n", err)
 	}
+
+	client = kubeclient
 
 	deploymentsWatch, err := client.AppsV1().Deployments("myproject").Watch(metav1.ListOptions{})
 	if err != nil {
 		log.Fatalf("%s\n", err)
 	}
-	podsWatch, err := client.CoreV1().Pods("myproject").Watch(metav1.ListOptions{})
-	if err != nil {
-		log.Fatalf("%s\n", err)
-	}
-
 	deployments := deploymentsWatch.ResultChan()
-	pods := podsWatch.ResultChan()
+
+	// podsWatch, err := client.CoreV1().Pods("myproject").Watch(metav1.ListOptions{})
+	// if err != nil {
+	// 	log.Fatalf("%s\n", err)
+	// }
+	// pods := podsWatch.ResultChan()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
@@ -102,18 +92,20 @@ func main() {
 			case os.Interrupt:
 				fmt.Println("Received SIGINT")
 				deploymentsWatch.Stop()
-				podsWatch.Stop()
+				return
+				// podsWatch.Stop()
 			case os.Kill:
 				fmt.Println("Received SIGTERM")
 				deploymentsWatch.Stop()
-				podsWatch.Stop()
+				return
+				// podsWatch.Stop()
 			default:
 				fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
 			}
 		case event := <-deployments:
 			handleEvent(event)
-		case event := <-pods:
-			handleEvent(event)
+			// case event := <-pods:
+			// 	handleEvent(event)
 		}
 	}
 }
@@ -127,6 +119,12 @@ func handleEvent(event watch.Event) {
 			} else {
 				log.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
 			}
+		}
+		imageid := o.Spec.Template.Spec.Containers[0].Image
+		if c, err := components.SetImage(o.Name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+			log.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
+		} else {
+			log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 		}
 		if trace {
 			logEvent(event, o.ObjectMeta)
@@ -190,15 +188,48 @@ func logEvent(event watch.Event, o metav1.ObjectMeta) {
 	}
 }
 
+func LoadKubeconfig() (kubernetes.Interface, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	configpath := filepath.Join(home, ".kube", "config")
+	config, err := clientcmd.BuildConfigFromFlags("", configpath)
+	if err != nil {
+		return nil, err
+	}
+
+	return kubernetes.NewForConfig(config)
+}
+
+func LoadClient() (kubernetes.Interface, error) {
+	config, err := LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(config.Clusters[config.Default].CAData)
+
+	return kubernetes.NewForConfig(&rest.Config{
+		Host:        config.Clusters[config.Default].Host,
+		BearerToken: config.Clusters[config.Default].Token,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData: []byte(config.Clusters[config.Default].CAData),
+		},
+	})
+}
+
 func LoadConfig() (*Config, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 
+	// configpath := filepath.Join(home, ".kube", "config")
 	configpath := filepath.Join(home, ".deputy")
 	if _, err := os.Stat(configpath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("File $HOME/.deputy does not exist")
+		return nil, fmt.Errorf("File $%s does not exist", configpath)
 	}
 
 	configfile, err := os.Open(configpath)

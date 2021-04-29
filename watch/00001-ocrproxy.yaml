@@ -1,0 +1,152 @@
+typemeta:
+  kind: ""
+  apiversion: ""
+objectmeta:
+  name: ocrproxy
+  generatename: ""
+  namespace: myproject
+  selflink: /apis/apps/v1/namespaces/myproject/deployments/ocrproxy
+  uid: ea26d230-3e21-11eb-9671-00155d630108
+  resourceversion: "8955874"
+  generation: 1
+  creationtimestamp: "2020-12-14T16:34:54+01:00"
+  deletiontimestamp: null
+  deletiongraceperiodseconds: null
+  labels: {}
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"ocrproxy","namespace":"myproject"},"spec":{"selector":{"matchLabels":{"app":"ocrproxy"}},"template":{"metadata":{"labels":{"app":"ocrproxy"}},"spec":{"containers":[{"image":"172.30.1.1:5000/myproject/ocrproxy","name":"ocrproxy","ports":[{"containerPort":5000}],"resources":{"limits":{"cpu":".25","memory":"128Mi"}}}]}}}}
+  ownerreferences: []
+  initializers: null
+  finalizers: []
+  clustername: ""
+spec:
+  replicas: 1
+  selector:
+    matchlabels:
+      app: ocrproxy
+    matchexpressions: []
+  template:
+    objectmeta:
+      name: ""
+      generatename: ""
+      namespace: ""
+      selflink: ""
+      uid: ""
+      resourceversion: ""
+      generation: 0
+      creationtimestamp: "0001-01-01T00:00:00Z"
+      deletiontimestamp: null
+      deletiongraceperiodseconds: null
+      labels:
+        app: ocrproxy
+      annotations: {}
+      ownerreferences: []
+      initializers: null
+      finalizers: []
+      clustername: ""
+    spec:
+      volumes: []
+      initcontainers: []
+      containers:
+      - name: ocrproxy
+        image: 172.30.1.1:5000/myproject/ocrproxy
+        command: []
+        args: []
+        workingdir: ""
+        ports:
+        - name: ""
+          hostport: 0
+          containerport: 5000
+          protocol: TCP
+          hostip: ""
+        envfrom: []
+        env: []
+        resources:
+          limits:
+            cpu:
+              format: DecimalSI
+            memory:
+              format: BinarySI
+          requests: {}
+        volumemounts: []
+        volumedevices: []
+        livenessprobe: null
+        readinessprobe: null
+        lifecycle: null
+        terminationmessagepath: /dev/termination-log
+        terminationmessagepolicy: File
+        imagepullpolicy: Always
+        securitycontext: null
+        stdin: false
+        stdinonce: false
+        tty: false
+      restartpolicy: Always
+      terminationgraceperiodseconds: 30
+      activedeadlineseconds: null
+      dnspolicy: ClusterFirst
+      nodeselector: {}
+      serviceaccountname: ""
+      deprecatedserviceaccount: ""
+      automountserviceaccounttoken: null
+      nodename: ""
+      hostnetwork: false
+      hostpid: false
+      hostipc: false
+      shareprocessnamespace: null
+      securitycontext:
+        selinuxoptions: null
+        runasuser: null
+        runasgroup: null
+        runasnonroot: null
+        supplementalgroups: []
+        fsgroup: null
+        sysctls: []
+      imagepullsecrets: []
+      hostname: ""
+      subdomain: ""
+      affinity: null
+      schedulername: default-scheduler
+      tolerations: []
+      hostaliases: []
+      priorityclassname: ""
+      priority: null
+      dnsconfig: null
+      readinessgates: []
+  strategy:
+    type: RollingUpdate
+    rollingupdate:
+      maxunavailable:
+        type: 1
+        intval: 0
+        strval: 25%
+      maxsurge:
+        type: 1
+        intval: 0
+        strval: 25%
+  minreadyseconds: 0
+  revisionhistorylimit: 10
+  paused: false
+  progressdeadlineseconds: 600
+status:
+  observedgeneration: 1
+  replicas: 1
+  updatedreplicas: 1
+  readyreplicas: 1
+  availablereplicas: 1
+  unavailablereplicas: 0
+  conditions:
+  - type: Progressing
+    status: "True"
+    lastupdatetime: "2020-12-14T16:34:57+01:00"
+    lasttransitiontime: "2020-12-14T16:34:54+01:00"
+    reason: NewReplicaSetAvailable
+    message: ReplicaSet "ocrproxy-9cd9dc877" has successfully progressed.
+  - type: Available
+    status: "True"
+    lastupdatetime: "2021-03-29T14:47:03+02:00"
+    lasttransitiontime: "2021-03-29T14:47:03+02:00"
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+  collisioncount: null

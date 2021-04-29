@@ -15,20 +15,20 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-type ImageRegistry interface {
-	// Look up a manifest using the specified reference
-	Manifest(ctx context.Context, ref string) (distribution.Manifest, error)
-	// Open an io.ReadSeekCloser
-	Blob(ctx context.Context, ref string) (io.ReadSeekCloser, error)
+var _ Registry = &RemoteRegistry{}
+
+type Registry interface {
+	// Create repository instance  for a named repository
+	Repository(named reference.Named) (Repository, error)
 }
 
 // A client abstraction for a docker image registry.
-type Registry struct {
+type RemoteRegistry struct {
 	BaseUrl   string
 	Transport http.RoundTripper
 }
 
-func (r *Registry) Repository(ref reference.Named) (Repository, error) {
+func (r *RemoteRegistry) Repository(ref reference.Named) (Repository, error) {
 	path := reference.Path(ref)
 	repo, err := reference.WithName(path)
 	if err != nil {
@@ -41,7 +41,7 @@ func (r *Registry) Repository(ref reference.Named) (Repository, error) {
 	return &repository{client}, nil
 }
 
-func (r *Registry) Manifest(ctx context.Context, s string) (distribution.Manifest, error) {
+func (r *RemoteRegistry) Manifest(ctx context.Context, s string) (distribution.Manifest, error) {
 	i := strings.Index(s, "/")
 	j := strings.LastIndex(s, "/")
 
@@ -74,7 +74,7 @@ func (r *Registry) Manifest(ctx context.Context, s string) (distribution.Manifes
 	return nil, fmt.Errorf("Not implemented yet")
 }
 
-func (r *Registry) Blob(ctx context.Context, s string) (io.ReadSeekCloser, error) {
+func (r *RemoteRegistry) Blob(ctx context.Context, s string) (io.ReadSeekCloser, error) {
 	i := strings.LastIndex(s, "/")
 
 	repo, err := reference.WithName(s[:i])
@@ -99,7 +99,7 @@ func (r *Registry) Blob(ctx context.Context, s string) (io.ReadSeekCloser, error
 	return nil, fmt.Errorf("Not implemented yet")
 }
 
-func (r *Registry) transport() http.RoundTripper {
+func (r *RemoteRegistry) transport() http.RoundTripper {
 	if r.Transport == nil {
 		return http.DefaultTransport
 	}

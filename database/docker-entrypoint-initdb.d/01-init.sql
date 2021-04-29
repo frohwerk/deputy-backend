@@ -47,8 +47,17 @@ CREATE TABLE files (
 
 DROP TABLE IF EXISTS images_artifacts;
 CREATE TABLE images_artifacts (
-    image VARCHAR(150) NOT NULL,
+    image_id VARCHAR(150) NOT NULL,
     file_id VARCHAR(36) NOT NULL,
-    PRIMARY KEY (image, file_id),
+    PRIMARY KEY (image_id, file_id),
     FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
+);
+
+-- TODO: Create table and handler for /envs
+CREATE TABLE envs (
+    env_id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    env_name       VARCHAR(50) UNIQUE,
+    env_api_server VARCHAR(256),
+    env_namespace  VARCHAR(50),
+    env_secret     VARCHAR(256)
 );

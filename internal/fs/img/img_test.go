@@ -96,7 +96,7 @@ func (t *mockTransport) Error(ec errcode.ErrorCode, msg string) (*http.Response,
 
 func TestFromImage(t *testing.T) {
 	ref := "172.0.0.1:5000/myproject/my-image:1.2.3"
-	registry := images.Registry{BaseUrl: "https://registry.server", Transport: transport}
+	registry := &images.RemoteRegistry{BaseUrl: "https://registry.server", Transport: transport}
 	fs, err := imgfs.FromImage(ref, registry)
 	if assert.NoError(t, err) && assert.NotNil(t, fs, "Either fs or err should have a non-nil value") {
 		assert.Equal(t, ref, fs.Name)

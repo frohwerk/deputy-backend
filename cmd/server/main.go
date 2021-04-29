@@ -12,6 +12,7 @@ import (
 
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/server/components"
+	"github.com/frohwerk/deputy-backend/cmd/server/envs"
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 
 	"github.com/frohwerk/deputy-backend/internal"
@@ -28,14 +29,17 @@ import (
 )
 
 var (
-	rtbase  string
 	command = &cobra.Command{Run: Run}
+
+	rtbase string
+	port   int
 
 	k8s internal.Platform
 )
 
 func init() {
-	command.PersistentFlags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091/libs-release-local", "Specify the base-uri for artifactory")
+	command.Flags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091/libs-release-local", "Specify the base-uri for artifactory")
+	command.Flags().IntVarP(&port, "port", "p", 8080, "port this webhook will listen on")
 }
 
 type response struct {
@@ -124,6 +128,7 @@ func Run(cmd *cobra.Command, args []string) {
 
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
+	es := database.NewEnvStore(db)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -140,11 +145,18 @@ func Run(cmd *cobra.Command, args []string) {
 	mux.Route("/api/components", func(r chi.Router) {
 		r.Get("/", components.List(cs))
 	})
+	mux.Route("/api/envs", func(r chi.Router) {
+		r.Get("/", envs.List(es))
+		r.Get("/{id}", envs.Get(es))
+		r.Post("/", envs.Create(es))
+		r.Put("/{id}", envs.Update(es))
+		r.Delete("/{id}", envs.Delete(es))
+	})
 	mux.Post("/webhooks/artifactory", rt.WebhookHandler)
 	mux.Get("/stream", stream)
 
 	server := http.Server{
-		Addr:    ":8082",
+		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
 	}
 

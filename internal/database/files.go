@@ -17,10 +17,14 @@ type File struct {
 	Parent string
 }
 
+type FileDigestFinder interface {
+	FindByDigest(string) ([]File, error)
+}
+
 type FileLookup interface {
 	Get(string) (*File, error)
-	FindByDigest(string) ([]File, error)
 	FindByParent(string) ([]File, error)
+	FileDigestFinder
 }
 
 type FileCreater interface {
@@ -29,6 +33,7 @@ type FileCreater interface {
 }
 
 type FileStore interface {
+	ArchiveLookup
 	FileCreater
 	FileLookup
 }

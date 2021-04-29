@@ -264,3 +264,25 @@ Layer n-1:
 
 Layer n-2:
 - app\libs
+
+------------------------------------------------------------------------------------------------
+
+TODO:
+- Support multiple namespaces on different clusters for one environment!
+- Connect applications to environments
+- List application components within a specific environment
+- Compare application components between two environments
+
+Relationships:
+1 Stage <-> n Environments
+1 Environment <-> n Components
+1 Application <-> n Components
+1 Application <-> n Stages
+
+OR:
+n Platforms (API-Server + Namespace) <-> 1 Environment (Logical Name)
+=> New entity: platform with many-to-one relationship to environment
+
+
+Add environment => Test
+Add platform => https://192.168.178.31:8443 | myproject | 

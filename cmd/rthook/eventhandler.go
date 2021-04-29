@@ -5,7 +5,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"log"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/frohwerk/deputy-backend/internal/fs"
 	tarfs "github.com/frohwerk/deputy-backend/internal/fs/tar"
 	zipfs "github.com/frohwerk/deputy-backend/internal/fs/zip"
+	"github.com/opencontainers/go-digest"
 
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -55,7 +55,12 @@ func read(name string, r io.ReadCloser) (*fs.Archive, error) {
 	case strings.HasSuffix(name, ".tar.gz"):
 		return readTarGz(name, r)
 	default:
-		return nil, fmt.Errorf("%s file format not supported yet\n", name)
+		dgst, err := digest.FromReader(r)
+		if err != nil {
+			return nil, err
+		}
+		return &fs.Archive{Name: name, FileSystemInfo: &fs.FileSystemInfo{Digest: dgst.String()}}, nil
+		// return nil, fmt.Errorf("%s file format not supported yet\n", name)
 	}
 }
 

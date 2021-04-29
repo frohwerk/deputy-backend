@@ -1,0 +1,147 @@
+typemeta:
+  kind: ""
+  apiversion: ""
+objectmeta:
+  name: node-hello-world
+  generatename: ""
+  namespace: myproject
+  selflink: /apis/apps/v1/namespaces/myproject/deployments/node-hello-world
+  uid: b2987fc0-7435-11eb-8d74-00155d630108
+  resourceversion: "10127280"
+  generation: 2
+  creationtimestamp: "2021-02-21T12:12:34+01:00"
+  deletiontimestamp: null
+  deletiongraceperiodseconds: null
+  labels: {}
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"node-hello-world","namespace":"myproject"},"spec":{"selector":{"matchLabels":{"app":"node-hello-world"}},"template":{"metadata":{"labels":{"app":"node-hello-world"}},"spec":{"containers":[{"image":"172.30.1.1:5000/myproject/node-hello-world:1.0.3","name":"node-hello-world","resources":{"limits":{"cpu":"1","memory":"128Mi"}}}]}}}}
+  ownerreferences: []
+  initializers: null
+  finalizers: []
+  clustername: ""
+spec:
+  replicas: 1
+  selector:
+    matchlabels:
+      app: node-hello-world
+    matchexpressions: []
+  template:
+    objectmeta:
+      name: ""
+      generatename: ""
+      namespace: ""
+      selflink: ""
+      uid: ""
+      resourceversion: ""
+      generation: 0
+      creationtimestamp: "0001-01-01T00:00:00Z"
+      deletiontimestamp: null
+      deletiongraceperiodseconds: null
+      labels:
+        app: node-hello-world
+      annotations: {}
+      ownerreferences: []
+      initializers: null
+      finalizers: []
+      clustername: ""
+    spec:
+      volumes: []
+      initcontainers: []
+      containers:
+      - name: node-hello-world
+        image: 172.30.1.1:5000/myproject/node-hello-world:1.0.3
+        command: []
+        args: []
+        workingdir: ""
+        ports: []
+        envfrom: []
+        env: []
+        resources:
+          limits:
+            cpu:
+              format: DecimalSI
+            memory:
+              format: BinarySI
+          requests: {}
+        volumemounts: []
+        volumedevices: []
+        livenessprobe: null
+        readinessprobe: null
+        lifecycle: null
+        terminationmessagepath: /dev/termination-log
+        terminationmessagepolicy: File
+        imagepullpolicy: IfNotPresent
+        securitycontext: null
+        stdin: false
+        stdinonce: false
+        tty: false
+      restartpolicy: Always
+      terminationgraceperiodseconds: 30
+      activedeadlineseconds: null
+      dnspolicy: ClusterFirst
+      nodeselector: {}
+      serviceaccountname: ""
+      deprecatedserviceaccount: ""
+      automountserviceaccounttoken: null
+      nodename: ""
+      hostnetwork: false
+      hostpid: false
+      hostipc: false
+      shareprocessnamespace: null
+      securitycontext:
+        selinuxoptions: null
+        runasuser: null
+        runasgroup: null
+        runasnonroot: null
+        supplementalgroups: []
+        fsgroup: null
+        sysctls: []
+      imagepullsecrets: []
+      hostname: ""
+      subdomain: ""
+      affinity: null
+      schedulername: default-scheduler
+      tolerations: []
+      hostaliases: []
+      priorityclassname: ""
+      priority: null
+      dnsconfig: null
+      readinessgates: []
+  strategy:
+    type: RollingUpdate
+    rollingupdate:
+      maxunavailable:
+        type: 1
+        intval: 0
+        strval: 25%
+      maxsurge:
+        type: 1
+        intval: 0
+        strval: 25%
+  minreadyseconds: 0
+  revisionhistorylimit: 10
+  paused: false
+  progressdeadlineseconds: 600
+status:
+  observedgeneration: 2
+  replicas: 1
+  updatedreplicas: 1
+  readyreplicas: 1
+  availablereplicas: 1
+  unavailablereplicas: 0
+  conditions:
+  - type: Available
+    status: "True"
+    lastupdatetime: "2021-04-04T11:33:04+02:00"
+    lasttransitiontime: "2021-04-04T11:33:04+02:00"
+    reason: MinimumReplicasAvailable
+    message: Deployment has minimum availability.
+  - type: Progressing
+    status: "True"
+    lastupdatetime: "2021-04-04T11:33:04+02:00"
+    lasttransitiontime: "2021-02-21T12:12:34+01:00"
+    reason: NewReplicaSetAvailable
+    message: ReplicaSet "node-hello-world-65b548d5bf" has successfully progressed.
+  collisioncount: null

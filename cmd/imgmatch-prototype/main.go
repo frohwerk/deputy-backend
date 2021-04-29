@@ -49,7 +49,8 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// repo, err := reg.Repo("myproject/node-hello-world")
-	repo, err := reg.Repo("myproject/jetty-hello-world")
+	// repo, err := reg.Repo("myproject/jetty-hello-world")
+	repo, err := reg.Repo("myproject/ocrproxy")
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,9 @@ func run(cmd *cobra.Command, args []string) error {
 	// node-hello-world
 	// m, err := ms.Get(ctx, digest.Digest("sha256:3bf137c335a2f7f9040eef6c2093abaa273135af0725fdeea5c4009a695d840f"))
 	// jetty-hello-world
-	m, err := ms.Get(ctx, digest.Digest("sha256:f1966dbfe1d5af2f0fe5779025368aa42883ba7a188a590f64b964e0fd01eeb3"))
+	// m, err := ms.Get(ctx, digest.Digest("sha256:f1966dbfe1d5af2f0fe5779025368aa42883ba7a188a590f64b964e0fd01eeb3"))
+	// ocrproxy
+	m, err := ms.Get(ctx, digest.Digest("sha256:70272a19cf1abfc1ca938a467efdc517151d50ed08589997e6faf1bd9e24c1ca"))
 	if err != nil {
 		return err
 	}
@@ -89,8 +92,8 @@ func run(cmd *cobra.Command, args []string) error {
 
 func processManifestV2(ctx context.Context, repo distribution.Repository, manifest *schema2.DeserializedManifest) (FileSlice, error) {
 	fs := FileSlice{}
-	// Optimization? Scan in reverse order. Break on the first result?
-	for _, layer := range manifest.Layers {
+	// TODO: Verify optimization: Skip first layer, since it contains only the root filesystem (many unnecessary files)
+	for _, layer := range manifest.Layers[1:] {
 		// TODO Remove debug shortcut:
 		// if layer.Digest.String() != "sha256:0ca190b54e2e5c4cb72344a2d135a0b0db388e6ce19bcbea7af55955946d5b9c" {
 		// 	continue
@@ -137,7 +140,7 @@ func processManifestV2(ctx context.Context, repo distribution.Repository, manife
 	return fs, nil
 }
 
-func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup database.ArchiveLookup) ([]database.File, error) {
+func FindArtifacts(fs []File, fileStore database.FileDigestFinder, archiveStore database.ArchiveLookup) ([]database.File, error) {
 	result := []database.File{}
 	for _, f := range fs {
 		files, err := fileStore.FindByDigest(f.digest)
@@ -152,7 +155,6 @@ func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup databa
 	if len(result) > 0 {
 		return result, nil
 	}
-	// TODO: Perform content matching
 	strength := 0
 	scanned := make(set)
 	cb := &util.ControlBreak{}
@@ -161,7 +163,7 @@ func FindArtifacts(fs []File, fileStore database.FileStore, archiveLookup databa
 			scanned.clear()
 		}
 		// Match using file digests
-		archives, err := archiveLookup.FindByContent(&database.File{Name: f.name, Digest: f.digest})
+		archives, err := archiveStore.FindByContent(&database.File{Name: f.name, Digest: f.digest})
 		if err != nil {
 			return nil, err
 		}

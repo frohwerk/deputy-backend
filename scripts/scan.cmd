@@ -1,0 +1,1 @@
+@curl -X POST http://localhost:8092/?image=172.30.1.1%%3A5000%%2Fmyproject%%2Fnode-hello-world%%3A1.0.3

@@ -37,7 +37,7 @@ func TestStuff(t *testing.T) {
 	}))
 	defer server.Close()
 
-	r := images.Registry{BaseUrl: server.URL}
+	r := images.RemoteRegistry{BaseUrl: server.URL}
 
 	ctx := context.Background()
 	m, err := r.Manifest(ctx, "172.30.1.1:5000/myproject/jetty-hello-world/sha256:f1966dbfe1d5af2f0fe5779025368aa42883ba7a188a590f64b964e0fd01eeb3")

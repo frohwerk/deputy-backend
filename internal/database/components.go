@@ -89,18 +89,20 @@ func (s *componentStore) ListUnassigned() ([]Component, error) {
 func (s *componentStore) ListForApp(id string) ([]Component, error) {
 	return s.selectComponents(`
 		SELECT c.id, c.name, c.updated, COALESCE(c.version, ''), COALESCE(c.image, '')
-		FROM components c
-	  	WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id)
-	`)
+ 	    FROM apps_components r
+ 		JOIN components c
+ 		ON c.id = r.component_id
+		WHERE r.app_id = $1
+	`, id)
 }
 
 func (s *componentStore) selectComponent(query string, args ...interface{}) (*Component, error) {
 	row := s.db.QueryRow(query, args...)
-	c := &Component{}
-	if err := row.Scan(&c.Id, &c.Name, &c.Updated, &c.Version, &c.Image); err != nil {
+	if c, err := scanComponent(row); err != nil {
 		return nil, err
+	} else {
+		return c, nil
 	}
-	return c, nil
 }
 
 func (s *componentStore) selectComponents(query string, args ...interface{}) ([]Component, error) {
@@ -111,13 +113,21 @@ func (s *componentStore) selectComponents(query string, args ...interface{}) ([]
 	defer util.Close(rows, log.Printf)
 	components := make([]Component, 0)
 	for rows.Next() {
-		c := Component{}
-		if err := rows.Scan(&c.Id, &c.Name, &c.Image); err != nil {
+		if c, err := scanComponent(rows); err != nil {
 			return nil, err
+		} else {
+			components = append(components, *c)
 		}
-		components = append(components, c)
 	}
 	return components, nil
+}
+
+func scanComponent(s scanner) (*Component, error) {
+	c := Component{}
+	if err := s.Scan(&c.Id, &c.Name, &c.Updated, &c.Version, &c.Image); err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
 
 func (c Component) modified(other Component) bool {
