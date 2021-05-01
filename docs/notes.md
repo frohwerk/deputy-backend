@@ -268,7 +268,10 @@ Layer n-2:
 ------------------------------------------------------------------------------------------------
 
 TODO:
-- Support multiple namespaces on different clusters for one environment!
+- Create controller to start and monitor k8swatchers for all platforms
+- Add certificate column to platform(?)
+- Add environment dropdown to unassigned component selection (application-view)
+- Add list of ignored suffixes for component names (e.g.: -dev|-test|-si|-pentest)
 - Connect applications to environments
 - List application components within a specific environment
 - Compare application components between two environments

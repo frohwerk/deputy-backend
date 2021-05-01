@@ -53,11 +53,21 @@ CREATE TABLE images_artifacts (
     FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
 );
 
--- TODO: Create table and handler for /envs
+DROP TABLE IF EXISTS platforms;
+DROP TABLE IF EXISTS envs;
+
 CREATE TABLE envs (
     env_id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    env_name       VARCHAR(50) UNIQUE,
-    env_api_server VARCHAR(256),
-    env_namespace  VARCHAR(50),
-    env_secret     VARCHAR(256)
+    env_name       VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE platforms (
+    pf_id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    pf_env        VARCHAR(36) NOT NULL,
+    pf_name       VARCHAR(50),
+    pf_api_server VARCHAR(256),
+    pf_namespace  VARCHAR(50),
+    pf_secret     VARCHAR(256),
+    UNIQUE (pf_env, pf_name),
+    FOREIGN KEY (pf_env) REFERENCES envs(env_id) ON DELETE CASCADE
 );

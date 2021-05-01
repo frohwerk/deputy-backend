@@ -46,8 +46,10 @@ type Cluster struct {
 }
 
 var (
-	db         *sql.DB
-	components database.ComponentStore
+	platform string
+
+	db *sql.DB
+	cs database.ComponentStore
 
 	client kubernetes.Interface
 
@@ -57,55 +59,73 @@ var (
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		log.Fatalf("Usage: %s <platform>", os.Args[0])
+		log.Fatalf("error: No target platform specified")
+	}
+
 	db = database.Open()
 	defer database.Close(db)
 
-	components = database.NewComponentStore(db)
+	ps := database.NewPlatformStore(db)
+	cs = database.NewComponentStore(db)
 
-	kubeclient, err := LoadKubeconfig()
-	// client, err := LoadClient()
+	platform, err := ps.Get(os.Args[1])
 	if err != nil {
-		log.Fatalf("%s\n", err)
+		log.Fatalf("error reading platform configuration from database: %s", err)
 	}
 
-	client = kubeclient
-
-	deploymentsWatch, err := client.AppsV1().Deployments("myproject").Watch(metav1.ListOptions{})
+	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
+	cadata, err := os.ReadFile(cafile)
 	if err != nil {
-		log.Fatalf("%s\n", err)
+		log.Fatalf("error reading cadata from %s: %s", cafile, err)
 	}
-	deployments := deploymentsWatch.ResultChan()
 
-	// podsWatch, err := client.CoreV1().Pods("myproject").Watch(metav1.ListOptions{})
-	// if err != nil {
-	// 	log.Fatalf("%s\n", err)
-	// }
-	// pods := podsWatch.ResultChan()
+	config := &rest.Config{
+		Host:        platform.ServerUri,
+		BearerToken: platform.Secret,
+		TLSClientConfig: rest.TLSClientConfig{
+			CAData: cadata,
+		},
+	}
+
+	if kubeclient, err := kubernetes.NewForConfig(config); err != nil {
+		log.Fatalf("error initializing kubernetes client: %s", err)
+	} else {
+		client = kubeclient
+	}
+
+	deploymentsWatch, err := client.AppsV1().Deployments(platform.Namespace).Watch(metav1.ListOptions{})
+	if err != nil {
+		log.Fatalf("error watching namespace %s on api-server %s: %s\n", platform.Namespace, platform.ServerUri, err)
+	}
+
+	cleanup := sync.WaitGroup{}
+	cleanup.Add(1)
+
+	go func() {
+		for event := range deploymentsWatch.ResultChan() {
+			handleEvent(event)
+		}
+		cleanup.Done()
+	}()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	for {
-		select {
-		case sig := <-signals:
-			switch sig {
-			case os.Interrupt:
-				fmt.Println("Received SIGINT")
-				deploymentsWatch.Stop()
-				return
-				// podsWatch.Stop()
-			case os.Kill:
-				fmt.Println("Received SIGTERM")
-				deploymentsWatch.Stop()
-				return
-				// podsWatch.Stop()
-			default:
-				fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
-			}
-		case event := <-deployments:
-			handleEvent(event)
-			// case event := <-pods:
-			// 	handleEvent(event)
+		switch sig := <-signals; sig {
+		case os.Interrupt:
+			fmt.Println("Received SIGINT")
+			deploymentsWatch.Stop()
+			cleanup.Wait()
+			return
+		case os.Kill:
+			fmt.Println("Received SIGTERM")
+			deploymentsWatch.Stop()
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
 		}
 	}
 }
@@ -114,14 +134,14 @@ func handleEvent(event watch.Event) {
 	switch o := event.Object.(type) {
 	case *apps.Deployment:
 		if event.Type == watch.Added {
-			if c, err := components.CreateIfAbsent(o.Name); err != nil {
+			if c, err := cs.CreateIfAbsent(o.Name); err != nil {
 				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
 				log.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
 			}
 		}
 		imageid := o.Spec.Template.Spec.Containers[0].Image
-		if c, err := components.SetImage(o.Name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+		if c, err := cs.SetImage(o.Name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
 			log.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
 		} else {
 			log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
@@ -142,13 +162,13 @@ func handleEvent(event watch.Event) {
 				fmt.Printf("error finding name for pod %s: %s\n", o.Name, err)
 				return
 			}
-			if c, err := components.CreateIfAbsent(name); err != nil {
+			if c, err := cs.CreateIfAbsent(name); err != nil {
 				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
 				log.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
 			}
 			imageid := o.Status.ContainerStatuses[0].ImageID
-			if c, err := components.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+			if c, err := cs.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
 				log.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
 			} else {
 				log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)

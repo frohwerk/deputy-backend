@@ -15,10 +15,15 @@ type App struct {
 	Name string
 }
 
+type AppDeleter interface {
+	Delete(string) (*App, error)
+}
+
 type AppStore interface {
-	Get(string) (*App, error)
-	Create(App) (*App, error)
 	ListAll() ([]App, error)
+	Create(App) (*App, error)
+	Get(string) (*App, error)
+	AppDeleter
 
 	UpdateComponents(ctx context.Context, id string, components []string) error
 }
@@ -27,7 +32,7 @@ type appStore struct {
 	db *sql.DB
 }
 
-func NewAppStore(db *sql.DB) *appStore {
+func NewAppStore(db *sql.DB) AppStore {
 	return &appStore{db}
 }
 
@@ -69,6 +74,14 @@ func (s *appStore) Create(app App) (*App, error) {
 	return a, nil
 }
 
+func (s *appStore) Delete(id string) (*App, error) {
+	return s.queryOne(`
+		DELETE FROM apps
+		WHERE id = $1
+		RETURNING id, name
+	`, id)
+}
+
 // TODO: Patching the assignments instead of recreating is probably more efficient
 func (s *appStore) UpdateComponents(ctx context.Context, id string, components []string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -108,4 +121,16 @@ func tryRollback(tx *sql.Tx, err error) error {
 		return err
 	}
 	return err
+}
+
+func (s *appStore) queryOne(query string, args ...interface{}) (*App, error) {
+	return scanApp(s.db.QueryRow(query, args...))
+}
+
+func scanApp(s scanner) (*App, error) {
+	app := new(App)
+	if err := s.Scan(&app.Id, &app.Name); err != nil {
+		return nil, err
+	}
+	return app, nil
 }

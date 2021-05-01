@@ -9,11 +9,8 @@ import (
 )
 
 type Env struct {
-	Id        string
-	Name      string
-	ServerUri string
-	Namespace string
-	Secret    string
+	Id   string
+	Name string
 }
 
 type EnvCreator interface {
@@ -59,30 +56,30 @@ func NewEnvStore(db *sql.DB) EnvStore {
 
 func (s *envStore) Create(name string) (*Env, error) {
 	return s.queryOne(`
-		INSERT INTO envs (env_name) VALUES($1)
-		RETURNING env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
+		INSERT INTO envs (env_name) VALUES(NULLIF($1, ''))
+		RETURNING env_id, env_name
 	`, name)
 }
 
 func (s *envStore) Update(env *Env) (*Env, error) {
 	return s.queryOne(`
 		UPDATE envs SET
-		env_name = $2, env_api_server = $3, env_namespace = $4, env_secret = $5
+		env_name = NULLIF($2, '')
 		WHERE env_id = $1
-		RETURNING env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
-	`, env.Id, env.Name, env.ServerUri, env.Namespace, env.Secret)
+		RETURNING env_id, env_name
+	`, env.Id, env.Name)
 }
 
 func (s *envStore) List() ([]Env, error) {
 	return s.queryAll(`
-		SELECT env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
+		SELECT env_id, env_name
 		FROM envs
 	`)
 }
 
 func (s *envStore) Get(id string) (*Env, error) {
 	return s.queryOne(`
-		SELECT env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
+		SELECT env_id, env_name
 		FROM envs
 		WHERE env_id = $1
 	`, id)
@@ -90,7 +87,7 @@ func (s *envStore) Get(id string) (*Env, error) {
 
 func (s *envStore) FindByName(name string) (*Env, error) {
 	return s.queryOne(`
-		SELECT env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
+		SELECT env_id, env_name
 		FROM envs
 		WHERE lower(env_name) = $1
 	`, strings.ToLower(name))
@@ -100,7 +97,7 @@ func (s *envStore) Delete(id string) (*Env, error) {
 	return s.queryOne(`
 		DELETE FROM envs
 		WHERE env_id = $1
-		RETURNING env_id, env_name, COALESCE(env_api_server, ''), COALESCE(env_namespace, ''), COALESCE(env_secret, '')
+		RETURNING env_id, env_name
 	`, id)
 }
 
@@ -136,7 +133,7 @@ func (s *envStore) exec(query string, args ...interface{}) error {
 
 func scanEnv(s scanner) (*Env, error) {
 	e := Env{}
-	if err := s.Scan(&e.Id, &e.Name, &e.ServerUri, &e.Namespace, &e.Secret); err != nil {
+	if err := s.Scan(&e.Id, &e.Name); err != nil {
 		return nil, err
 	}
 	return &e, nil

@@ -1,11 +1,15 @@
 SELECT gen_random_uuid();
 SELECT * FROM envs;
+SELECT * FROM platforms;
 SELECT * FROM apps;
 SELECT * FROM components;
 
 DELETE FROM envs WHERE env_name in ('Produktion', 'Reisepass');
+DELETE FROM platforms;
 
 SELECT env_id, env_name FROM envs WHERE env_id = 'f12dfb6a-8abe-4aea-bbca-ba9ba47ac441';
+SELECT * FROM platforms WHERE pf_id = '73015cfb-2605-46ce-9690-2f9dcc7d6595';
+SELECT * FROM components c WHERE c.name not like 'Examp%';
 
 SELECT a.name, c.name, c.image FROM apps a LEFT JOIN apps_components r ON r.app_id = a.id LEFT JOIN components c ON c.id = r.component_id where a.name not like 'Examp%';
 

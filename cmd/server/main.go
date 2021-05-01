@@ -13,6 +13,7 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/server/components"
 	"github.com/frohwerk/deputy-backend/cmd/server/envs"
+	"github.com/frohwerk/deputy-backend/cmd/server/platforms"
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 
 	"github.com/frohwerk/deputy-backend/internal"
@@ -129,6 +130,7 @@ func Run(cmd *cobra.Command, args []string) {
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
 	es := database.NewEnvStore(db)
+	ps := database.NewPlatformStore(db)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -140,6 +142,7 @@ func Run(cmd *cobra.Command, args []string) {
 			r.Get("/components", getComponents)
 			r.Put("/components", apps.UpdateComponents(as))
 			r.Get("/", apps.Get(as, cs))
+			r.Delete("/", apps.Delete(as))
 		})
 	})
 	mux.Route("/api/components", func(r chi.Router) {
@@ -147,10 +150,17 @@ func Run(cmd *cobra.Command, args []string) {
 	})
 	mux.Route("/api/envs", func(r chi.Router) {
 		r.Get("/", envs.List(es))
-		r.Get("/{id}", envs.Get(es))
+		r.Get("/{env}", envs.Get(es))
 		r.Post("/", envs.Create(es))
-		r.Put("/{id}", envs.Update(es))
-		r.Delete("/{id}", envs.Delete(es))
+		r.Put("/{env}", envs.Update(es))
+		r.Delete("/{env}", envs.Delete(es))
+		r.Route("/{env}/platforms", func(r chi.Router) {
+			r.Get("/", platforms.List(ps))
+			r.Post("/", platforms.Create(ps))
+			r.Get("/{platform}", platforms.Get(ps))
+			r.Put("/{platform}", platforms.Update(ps))
+			r.Delete("/{platform}", platforms.Delete(ps))
+		})
 	})
 	mux.Post("/webhooks/artifactory", rt.WebhookHandler)
 	mux.Get("/stream", stream)

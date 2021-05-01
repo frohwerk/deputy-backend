@@ -5,14 +5,15 @@ import (
 
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/pkg/api"
+	"github.com/frohwerk/deputy-backend/pkg/httputil"
 	"github.com/go-chi/chi"
 )
 
 func Delete(deleter database.EnvDeleter) http.HandlerFunc {
 	delete := func(rw http.ResponseWriter, r *http.Request) (*api.Env, error) {
-		id := chi.URLParam(r, "id")
+		id := chi.URLParam(r, "env")
 		if id == "" {
-			return nil, badRequest("path parameter 'id' may not be empty")
+			return nil, httputil.BadRequest("path parameter 'id' may not be empty")
 		}
 		entity, err := deleter.Delete(id)
 		if err != nil {
@@ -22,9 +23,9 @@ func Delete(deleter database.EnvDeleter) http.HandlerFunc {
 	}
 	return func(rw http.ResponseWriter, r *http.Request) {
 		if env, err := delete(rw, r); err != nil {
-			writeErrorResponse(rw, err)
+			httputil.WriteErrorResponse(rw, err)
 		} else {
-			writeJsonResponse(rw, env)
+			httputil.WriteJsonResponse(rw, env)
 		}
 	}
 }

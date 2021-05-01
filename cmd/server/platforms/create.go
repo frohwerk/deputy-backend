@@ -1,39 +1,33 @@
-package envs
+package platforms
 
 import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/pkg/api"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
+	"github.com/go-chi/chi"
 )
 
-var (
-	patternName = regexp.MustCompile(`^[A-Za-z](?:[-a-z])*`)
-)
+type platformCreator interface {
+	Create(name string) (*api.Platform, error)
+}
 
 type createRequest struct {
 	Name string `json:"name,omitempty"`
 }
 
 func (r *createRequest) validate() error {
-	switch {
-	case r.Name == "":
-		return httputil.BadRequest("name attribute may not be empty")
-	case !patternName.MatchString(r.Name):
-		return httputil.BadRequest("name attribute may only must begin with a lower-case letter and may only contain lower-case letters and dashes")
-	default:
-		return nil
-	}
+	return nil
 }
 
-func Create(store database.EnvCreator) http.HandlerFunc {
-	create := func(rw http.ResponseWriter, r *http.Request) (*api.Env, error) {
+func Create(store database.PlatformCreator) http.HandlerFunc {
+	create := func(rw http.ResponseWriter, r *http.Request) (*api.Platform, error) {
+		envId := chi.URLParam(r, "env")
 		cr := new(createRequest)
 		err := json.NewDecoder(r.Body).Decode(cr)
 		if err != nil {
@@ -42,11 +36,11 @@ func Create(store database.EnvCreator) http.HandlerFunc {
 		if err := cr.validate(); err != nil {
 			return nil, err
 		}
-		entity, err := store.Create(cr.Name)
+		platform, err := store.Create(envId, cr.Name)
 		if err != nil {
 			return nil, err
 		}
-		return toApiObject(entity), nil
+		return platform, nil
 	}
 
 	return func(rw http.ResponseWriter, r *http.Request) {
