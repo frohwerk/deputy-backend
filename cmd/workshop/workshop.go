@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/frohwerk/deputy-backend/cmd/workshop/task"
+	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/task"
 )
 
 func init() {
@@ -16,34 +16,34 @@ func init() {
 }
 
 func main() {
-	tasks := []task.Task{task.CreateTask(1, work), task.CreateTask(2, work), task.CreateTask(3, work)}
+	log := logger.WithPrefix("[workshop] ", logger.LEVEL_TRACE)
+	w := &worker{Logger: log}
+
+	tasks := []task.Task{task.CreateTask("1", log, w.work), task.CreateTask("2", log, w.work), task.CreateTask("3", log, w.work)}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, os.Kill)
 
-	for _, task := range tasks {
-		go task.Start()
-	}
+	task.StartAll(tasks)
 
 	for {
 		switch s := <-sigs; s {
 		case os.Interrupt:
-			log.Println("SIGINT")
-			for _, t := range tasks {
-				t.Stop()
-			}
-			for _, t := range tasks {
-				t.Wait()
-			}
+			task.StopAll(tasks)
+			task.WaitAll(tasks)
 			os.Exit(0)
 		case os.Kill:
-			log.Println("SIGTERM")
+			log.Info("SIGTERM")
 			os.Exit(0)
 		}
 	}
 }
 
-func work(cancel <-chan interface{}) error {
+type worker struct {
+	logger.Logger
+}
+
+func (w *worker) work(cancel <-chan interface{}) error {
 	if rand.Intn(1) > 0 {
 		return fmt.Errorf("crash on startup")
 	}
@@ -52,10 +52,10 @@ func work(cancel <-chan interface{}) error {
 	for i := 0; i < rand.Intn(15)+1; i++ {
 		select {
 		case <-cancel:
-			return fmt.Errorf("got canceled")
+			return nil
 		case <-ticker.C:
 		}
-		log.Printf("working hard: %d", i)
+		w.Logger.Trace("working hard: %d", i)
 		if rand.Intn(15) > 13 {
 			return fmt.Errorf("crash during work")
 		}

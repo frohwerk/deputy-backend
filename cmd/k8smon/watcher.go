@@ -4,37 +4,32 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
+
+	"github.com/frohwerk/deputy-backend/internal/task"
 )
 
-type watcher struct {
-	Id string
-	*exec.Cmd
-}
-
-func k8swatcher(platform string) watcher {
-	path, err := os.Executable()
+func k8swatcher(platform string) task.Task {
+	p, err := executable("k8swatcher")
 	if err != nil {
-		log.Error("error looking up executable path:", err)
-		os.Exit(1)
-	}
-	dir := filepath.Dir(path)
-	suffix := ""
-	if runtime.GOOS == "windows" {
-		suffix = ".exe"
-	}
-	p := fmt.Sprintf("%s%ck8swatcher%s", dir, os.PathSeparator, suffix)
-
-	cmd := exec.Command(p, platform)
-	cmd.Stdout = &prefixer{Prefix: fmt.Sprintf("[%s] ", platform), Writer: os.Stdout}
-	cmd.Stderr = &prefixer{Prefix: fmt.Sprintf("[%s] ", platform), Writer: os.Stderr}
-
-	log.Debug("Starting %s %s", p, platform)
-
-	if err := cmd.Start(); err != nil {
-		log.Error("Error starting:", err)
+		log.Fatal("Failed to find executable k8swatcher: %s", err)
 	}
 
-	return watcher{Id: platform, Cmd: cmd}
+	t := task.CreateTask(platform, log, func(cancel <-chan interface{}) error {
+		cmd := exec.Command(p, platform)
+		cmd.Stdout = &prefixer{Prefix: fmt.Sprintf("[%s] ", platform), Writer: os.Stdout}
+		cmd.Stderr = &prefixer{Prefix: fmt.Sprintf("[%s] ", platform), Writer: os.Stderr}
+
+		result := make(chan error)
+		go func() { result <- cmd.Run() }()
+		log.Debug("Starting %s %s", p, platform)
+
+		select {
+		case err := <-result:
+			return err
+		case <-cancel:
+			return fmt.Errorf("task canceled")
+		}
+	})
+
+	return t
 }

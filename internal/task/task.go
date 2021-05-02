@@ -1,9 +1,10 @@
 package task
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	"github.com/frohwerk/deputy-backend/internal/logger"
 )
 
 var (
@@ -13,6 +14,7 @@ var (
 type WorkFunc func(cancel <-chan interface{}) error
 
 type Task interface {
+	Name() string
 	Start()
 	Stop()
 	Wait()
@@ -20,7 +22,8 @@ type Task interface {
 
 type task struct {
 	// constructor args
-	id   uint
+	id   string
+	log  logger.Logger
 	work WorkFunc
 	// internal state
 	sync.WaitGroup
@@ -30,51 +33,56 @@ type task struct {
 	cancel       chan interface{}
 }
 
-func CreateTask(id uint, work WorkFunc) Task {
+func CreateTask(id string, log logger.Logger, work WorkFunc) Task {
 	return &task{
 		id,
+		log,
 		work,
 		sync.WaitGroup{},
 		Created,
 		0,
-		[]time.Duration{0, 5 * time.Second, 15 * time.Second, 30 * time.Second},
+		[]time.Duration{0, 1 * time.Second, 10 * time.Second, 60 * time.Second, 300 * time.Second},
 		make(chan interface{}),
 	}
 }
 
+func (t *task) Name() string {
+	return t.id
+}
+
 func (t *task) Start() {
 	t.state = Running
-	log.Println("starting task", t.id)
+	t.log.Debug("starting task %s", t.id)
 	for t.state == Running {
 		t.Add(1)
 		if t.backoff > 0 {
 			b := t.backoffSteps[t.backoff]
-			log.Printf("task %d backoff for %d seconds", t.id, int(b.Seconds()))
+			t.log.Trace("task %s backoff for %d seconds", t.id, int(b.Seconds()))
 			select {
 			case <-t.cancel:
-				log.Printf("task %d is canceled during backoff", t.id)
+				t.log.Info("task %s is canceled during backoff", t.id)
 			case <-time.After(t.backoffSteps[t.backoff]):
 			}
 		}
 		if t.state == Running {
-			log.Println("task", t.id, "starting work")
+			t.log.Debug("task %s starting work", t.id)
 			if err := t.work(t.cancel); err != nil {
-				log.Println("error during task", t.id, err)
+				t.log.Error("error during task %s: %s", t.id, err)
 				t.backoff = min(t.backoff+1, uint(len(t.backoffSteps)))
 			} else {
 				t.backoff = 0
 			}
 		}
-		log.Println("task", t.id, "work ended")
+		t.log.Debug("task %s work ended", t.id)
 		t.Done()
 	}
 }
 
 func (t *task) Stop() {
 	t.state = Stopped
-	log.Printf("task#%d.state = Stopped", t.id)
+	t.log.Trace("task#%s.state = Stopped", t.id)
 	t.cancel <- nil
-	log.Printf("task#%d.cancel <- nil", t.id)
+	t.log.Trace("task#%s.cancel <- nil", t.id)
 }
 
 func (t *task) Wait() {

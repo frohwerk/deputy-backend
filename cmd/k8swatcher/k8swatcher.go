@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -60,8 +59,9 @@ var (
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatalf("Usage: %s <platform>", os.Args[0])
-		log.Fatalf("error: No target platform specified")
+		fmt.Printf("Usage: %s <platform>", os.Args[0])
+		fmt.Printf("error: No target platform specified")
+		os.Exit(1)
 	}
 
 	db = database.Open()
@@ -72,13 +72,15 @@ func main() {
 
 	platform, err := ps.Get(os.Args[1])
 	if err != nil {
-		log.Fatalf("error reading platform configuration from database: %s", err)
+		fmt.Printf("error reading platform configuration from database: %s", err)
+		os.Exit(1)
 	}
 
 	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
 	cadata, err := os.ReadFile(cafile)
 	if err != nil {
-		log.Fatalf("error reading cadata from %s: %s", cafile, err)
+		fmt.Printf("error reading cadata from %s: %s", cafile, err)
+		os.Exit(1)
 	}
 
 	config := &rest.Config{
@@ -90,14 +92,16 @@ func main() {
 	}
 
 	if kubeclient, err := kubernetes.NewForConfig(config); err != nil {
-		log.Fatalf("error initializing kubernetes client: %s", err)
+		fmt.Printf("error initializing kubernetes client: %s", err)
+		os.Exit(1)
 	} else {
 		client = kubeclient
 	}
 
 	deploymentsWatch, err := client.AppsV1().Deployments(platform.Namespace).Watch(metav1.ListOptions{})
 	if err != nil {
-		log.Fatalf("error watching namespace %s on api-server %s: %s\n", platform.Namespace, platform.ServerUri, err)
+		fmt.Printf("error watching namespace %s on api-server %s: %s\n", platform.Namespace, platform.ServerUri, err)
+		os.Exit(1)
 	}
 
 	cleanup := sync.WaitGroup{}
@@ -135,16 +139,16 @@ func handleEvent(event watch.Event) {
 	case *apps.Deployment:
 		if event.Type == watch.Added {
 			if c, err := cs.CreateIfAbsent(o.Name); err != nil {
-				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
+				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
-				log.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
+				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
 			}
 		}
 		imageid := o.Spec.Template.Spec.Containers[0].Image
 		if c, err := cs.SetImage(o.Name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
-			log.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
+			fmt.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
 		} else {
-			log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
+			fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 		}
 		if trace {
 			logEvent(event, o.ObjectMeta)
@@ -163,15 +167,15 @@ func handleEvent(event watch.Event) {
 				return
 			}
 			if c, err := cs.CreateIfAbsent(name); err != nil {
-				log.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
+				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
-				log.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
+				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
 			}
 			imageid := o.Status.ContainerStatuses[0].ImageID
 			if c, err := cs.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
-				log.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
+				fmt.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
 			} else {
-				log.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
+				fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 			}
 			// TODO: scan for matches with registered artifacts
 			// If one artifact matches with multiple versions, use the most precise match (most matched files)

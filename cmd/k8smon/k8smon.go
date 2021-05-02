@@ -5,10 +5,12 @@ import (
 	"os/signal"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
+	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/task"
 )
 
 var (
-	log = &basicLogger{prefix: "k8smon", level: LOG_DEBUG}
+	log = logger.WithPrefix("[k8smon] ", logger.LEVEL_DEBUG)
 )
 
 func main() {
@@ -18,15 +20,16 @@ func main() {
 	ps := database.NewPlatformStore(db)
 
 	platforms, err := ps.List()
-
 	if err != nil {
 		log.Fatal("error reading platforms: %s", err)
 	}
 
-	watchers := []watcher{}
-	for _, p := range platforms {
-		watchers = append(watchers, k8swatcher(p.Id))
+	watchers := make([]task.Task, len(platforms))
+	for i, p := range platforms {
+		watchers[i] = k8swatcher(p.Id)
 	}
+
+	task.StartAll(watchers)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
@@ -34,11 +37,8 @@ func main() {
 	for {
 		switch sig := <-signals; sig {
 		case os.Interrupt:
-			for _, c := range watchers {
-				if err := c.Wait(); err != nil {
-					log.Error("error during shutdown of k8swatcher %s:", c.Id, err)
-				}
-			}
+			task.StopAll(watchers)
+			task.WaitAll(watchers)
 			os.Exit(0)
 		case os.Kill:
 			os.Exit(0)
