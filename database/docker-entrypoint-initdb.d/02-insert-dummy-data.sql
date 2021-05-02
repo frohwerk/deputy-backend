@@ -22,5 +22,5 @@ INSERT INTO apps_components VALUES
 INSERT INTO envs (env_id, env_name) VALUES
   ('e7ccea48-c007-4ff5-b2fb-74516e77da00', 'Test');
 
-INSERT INTO platforms (pf_env, pf_name, pf_api_server, pf_namespace, pf_secret) VALUES
-  ('e7ccea48-c007-4ff5-b2fb-74516e77da00', 'minishift / myproject', 'https://192.168.178.31:8443', 'myproject', 'jtQk7YiCbS_8DAoZZhO7lLyg2t7yTp81onuOiZvz8FM');
+INSERT INTO platforms (pf_id, pf_env, pf_name, pf_api_server, pf_namespace, pf_secret) VALUES
+  ('c49ca75c-da18-4641-950c-f5609877828f', 'e7ccea48-c007-4ff5-b2fb-74516e77da00', 'minishift / myproject', 'https://192.168.178.31:8443', 'myproject', 'jtQk7YiCbS_8DAoZZhO7lLyg2t7yTp81onuOiZvz8FM');

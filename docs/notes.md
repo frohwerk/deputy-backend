@@ -268,7 +268,8 @@ Layer n-2:
 ------------------------------------------------------------------------------------------------
 
 TODO:
-- Create controller to start and monitor k8swatchers for all platforms
+- Add status tracking to k8smon to prevent endless restart attempts
+- Add restart for crashed k8swatchers to k8smon
 - Add certificate column to platform(?)
 - Add environment dropdown to unassigned component selection (application-view)
 - Add list of ignored suffixes for component names (e.g.: -dev|-test|-si|-pentest)

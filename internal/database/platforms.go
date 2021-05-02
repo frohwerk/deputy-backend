@@ -11,6 +11,7 @@ import (
 // Columns: pf_id, pf_env, pf_name, pf_api_server, pf_namespace, pf_secret
 
 type PlatformLister interface {
+	List() ([]api.Platform, error)
 	ListForEnv(envId string) ([]api.Platform, error)
 }
 
@@ -44,6 +45,13 @@ type platformStore struct {
 
 func NewPlatformStore(db *sql.DB) PlatformStore {
 	return &platformStore{db}
+}
+
+func (s *platformStore) List() ([]api.Platform, error) {
+	return s.queryAll(`
+		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		FROM platforms
+	`)
 }
 
 func (s *platformStore) ListForEnv(envId string) ([]api.Platform, error) {
