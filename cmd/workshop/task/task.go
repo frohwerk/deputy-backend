@@ -59,7 +59,7 @@ func (t *task) Start() {
 		if t.state == Running {
 			log.Println("task", t.id, "starting work")
 			if err := t.work(t.cancel); err != nil {
-				log.Println(err)
+				log.Println("error during task", t.id, err)
 				t.backoff = min(t.backoff+1, uint(len(t.backoffSteps)))
 			} else {
 				t.backoff = 0
