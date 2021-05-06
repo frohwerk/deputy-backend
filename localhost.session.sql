@@ -1,11 +1,20 @@
 SELECT gen_random_uuid();
+SELECT * FROM apps;
 SELECT * FROM envs;
 SELECT * FROM platforms;
-SELECT * FROM apps;
 SELECT * FROM components;
 SELECT * FROM deployments;
 
-INSERT INTO apps(name) VALUES ('Demo') ON CONFLICT DO NOTHING RETURNING id, name;
+INSERT INTO apps_components(app_id, component_id) VALUES('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', '5bc8884f-da5b-497f-bd87-3b2b9f04a2a0');
+
+SELECT e.env_name as env, a.name as app, c.name as comp, d.image_ref, d.updated
+  FROM apps a
+  JOIN envs e ON 1 = 1
+  JOIN apps_components ac ON ac.app_id = a.id
+  JOIN components c ON c.component_id = ac.component_id
+  JOIN platforms p ON p.pf_env = e.env_id
+  JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
+WHERE a.id = '555d8b8f-0eed-4a6c-a8a1-ca16f579aef2' AND e.env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
 
 DELETE FROM envs WHERE env_name in ('Produktion', 'Reisepass');
 DELETE FROM platforms;
