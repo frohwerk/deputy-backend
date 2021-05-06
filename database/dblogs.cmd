@@ -1,2 +1,2 @@
 @echo off
-docker-compose logs --no-log-prefix 
+docker compose logs --no-log-prefix

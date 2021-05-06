@@ -1,6 +1,9 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Event struct {
 	EventType string    `json:"type"`
@@ -8,10 +11,11 @@ type Event struct {
 }
 
 type Component struct {
-	Id    string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Type  string `json:"type,omitempty"`
-	Image string `json:"image,omitempty"`
+	Id      string    `json:"id,omitempty"`
+	Name    string    `json:"name,omitempty"`
+	Type    string    `json:"type,omitempty"`
+	Image   string    `json:"image,omitempty"`
+	Updated time.Time `json:"updated,omitempty"`
 }
 
 func (a *Component) String() string {

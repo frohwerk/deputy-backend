@@ -29,11 +29,19 @@ if "%1"=="imgmatch" (
     %term% "%1" cmd /c bin\%1.exe --port 8080
 ) else if "%1"=="mocktifactory" (
     %term% "%1" cmd /c ..\mocktifactory\bin\m.exe
+) else if "%1"=="k8smon" (
+    echo Building k8swatcher...
+    go build -o bin/k8swatcher.exe ./cmd/k8swatcher
+    if %errorlevel% neq 0 goto end
+    echo Building k8smon...
+    go build -o bin/%1.exe ./cmd/%1
+    if %errorlevel% neq 0 goto end
+    %term% "%1" cmd /c bin\%1.exe
 ) else if "%1"=="all" (
     call %~dp0up.cmd imgmatch
     call %~dp0up.cmd rthook
     call %~dp0up.cmd server
-    call %~dp0up.cmd k8swatcher
+    call %~dp0up.cmd k8smon
     call %~dp0up.cmd mocktifactory
 ) else (
     go build -o bin/%1.exe ./cmd/%1

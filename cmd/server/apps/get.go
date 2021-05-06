@@ -19,7 +19,7 @@ func Get(as database.AppStore, cs database.ComponentStore) http.HandlerFunc {
 			return
 		}
 
-		dbcomponents, err := cs.ListForApp(id)
+		dbcomponents, err := cs.ListAllForApp(id)
 		if err != nil {
 			writeErrorResponse(resp, err)
 			return
@@ -27,7 +27,7 @@ func Get(as database.AppStore, cs database.ComponentStore) http.HandlerFunc {
 
 		components := make([]api.Component, len(dbcomponents))
 		for i, c := range dbcomponents {
-			components[i] = api.Component{Id: c.Id, Name: c.Name, Image: c.Image}
+			components[i] = api.Component{Id: c.Id, Name: c.Name, Image: c.Image, Updated: c.Updated}
 		}
 
 		writeJsonResponse(resp, api.App{Id: dbapp.Id, Name: dbapp.Name, Artifacts: components})

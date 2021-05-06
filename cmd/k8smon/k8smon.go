@@ -14,16 +14,19 @@ var (
 )
 
 func main() {
+	log.Info("Starting k8smon...")
 	db := database.Open()
 	defer database.Close(db)
 
 	ps := database.NewPlatformStore(db)
 
+	log.Debug("Reading platforms...")
 	platforms, err := ps.List()
 	if err != nil {
 		log.Fatal("error reading platforms: %s", err)
 	}
 
+	log.Debug("Number of platforms: %d", len(platforms))
 	watchers := make([]task.Task, len(platforms))
 	for i, p := range platforms {
 		watchers[i] = k8swatcher(p.Id)

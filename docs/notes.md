@@ -268,14 +268,15 @@ Layer n-2:
 ------------------------------------------------------------------------------------------------
 
 TODO:
-- Add status tracking to k8smon to prevent endless restart attempts
-- Add restart for crashed k8swatchers to k8smon
+- Add deployments table to store different image-refs for different platforms
+- k8swatcher: store platform relationship in database
 - Add certificate column to platform(?)
 - Add environment dropdown to unassigned component selection (application-view)
 - Add list of ignored suffixes for component names (e.g.: -dev|-test|-si|-pentest)
 - Connect applications to environments
 - List application components within a specific environment
 - Compare application components between two environments
+- Watch pods and track exact image hash for components
 
 Relationships:
 1 Stage <-> n Environments

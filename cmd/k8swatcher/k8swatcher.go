@@ -14,6 +14,8 @@ import (
 	"sync"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
+	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/pkg/api"
 	yaml "gopkg.in/yaml.v2"
 
 	apps "k8s.io/api/apps/v1"
@@ -44,13 +46,17 @@ type Cluster struct {
 	CAData  string `yaml:"cadata"`
 }
 
-var (
-	platform string
+type eventHandler *sql.DB
 
-	db *sql.DB
-	cs database.ComponentStore
+var (
+	platform *api.Platform
+
+	db         *sql.DB
+	components database.ComponentStore
 
 	client kubernetes.Interface
+
+	log logger.Logger = logger.Basic(logger.LEVEL_DEBUG)
 
 	mutex      = &sync.Mutex{}
 	yamlStdout = yaml.NewEncoder(os.Stdout)
@@ -58,24 +64,33 @@ var (
 )
 
 func main() {
+	// minishift = c49ca75c-da18-4641-950c-f5609877828f
 	if len(os.Args) < 2 {
 		fmt.Printf("Usage: %s <platform>", os.Args[0])
 		fmt.Printf("error: No target platform specified")
 		os.Exit(1)
 	}
 
+	for _, todo := range todos {
+		fmt.Println("TODO:", todo)
+	}
+
 	db = database.Open()
 	defer database.Close(db)
 
-	ps := database.NewPlatformStore(db)
-	cs = database.NewComponentStore(db)
+	platforms := database.NewPlatformStore(db)
+	components = database.NewComponentStore(db)
+	deployments := database.NewDeploymentStore(db)
 
-	platform, err := ps.Get(os.Args[1])
+	p, err := platforms.Get(os.Args[1])
 	if err != nil {
 		fmt.Printf("error reading platform configuration from database: %s", err)
 		os.Exit(1)
 	}
+	platform = p
 
+	fmt.Println("TODO: replace hard coded certificate file")
+	fmt.Println("TODO: add option to get secret and certificate file from a file reference (useful fur cluster deployment)")
 	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
 	cadata, err := os.ReadFile(cafile)
 	if err != nil {
@@ -104,14 +119,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	cleanup := sync.WaitGroup{}
-	cleanup.Add(1)
+	shutdown := sync.WaitGroup{}
+	shutdown.Add(1)
 
 	go func() {
+		defer shutdown.Done()
+		handler := &deploymentHandler{platform, components, deployments}
 		for event := range deploymentsWatch.ResultChan() {
-			handleEvent(event)
+			err := handler.handleEvent(event)
+			if err != nil {
+				log.Error("error handling deployment event: %s", err)
+			}
 		}
-		cleanup.Done()
 	}()
 
 	signals := make(chan os.Signal, 1)
@@ -122,7 +141,7 @@ func main() {
 		case os.Interrupt:
 			fmt.Println("Received SIGINT")
 			deploymentsWatch.Stop()
-			cleanup.Wait()
+			shutdown.Wait()
 			return
 		case os.Kill:
 			fmt.Println("Received SIGTERM")
@@ -137,18 +156,25 @@ func main() {
 func handleEvent(event watch.Event) {
 	switch o := event.Object.(type) {
 	case *apps.Deployment:
+		fmt.Println("TODO  Use transaction for multiple database changes")
 		if event.Type == watch.Added {
-			if c, err := cs.CreateIfAbsent(o.Name); err != nil {
+			if c, err := components.CreateIfAbsent(o.Name); err != nil {
 				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
 				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
 			}
 		}
-		imageid := o.Spec.Template.Spec.Containers[0].Image
-		if c, err := cs.SetImage(o.Name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+		fmt.Println("TODO: write deployments entry")
+		c, err := components.SetImage(o.Name, strings.TrimPrefix(o.Spec.Template.Spec.Containers[0].Image, "docker-pullable://"))
+		if err != nil {
 			fmt.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
+			return
 		} else {
 			fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
+		}
+		if err := components.LinkPlatform(platform.Id, c.Id); err != nil {
+			fmt.Printf("ERROR Failed to link platform %s with image %s: %s\n", platform.Id, c.Id, err)
+			return
 		}
 		if trace {
 			logEvent(event, o.ObjectMeta)
@@ -166,13 +192,13 @@ func handleEvent(event watch.Event) {
 				fmt.Printf("error finding name for pod %s: %s\n", o.Name, err)
 				return
 			}
-			if c, err := cs.CreateIfAbsent(name); err != nil {
+			if c, err := components.CreateIfAbsent(name); err != nil {
 				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
 			} else {
 				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
 			}
 			imageid := o.Status.ContainerStatuses[0].ImageID
-			if c, err := cs.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
+			if c, err := components.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
 				fmt.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
 			} else {
 				fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
