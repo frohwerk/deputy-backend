@@ -105,6 +105,7 @@ func flush(resp http.ResponseWriter) bool {
 }
 
 func main() {
+	todos.print()
 	command.Use = os.Args[0]
 	if err := command.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -129,8 +130,11 @@ func Run(cmd *cobra.Command, args []string) {
 
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
+	ds := database.NewDeploymentStore(db)
 	es := database.NewEnvStore(db)
 	ps := database.NewPlatformStore(db)
+
+	ah := apps.NewHandler(db, as, cs, ds, es, ps)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -141,7 +145,7 @@ func Run(cmd *cobra.Command, args []string) {
 			r.Get("/artifacts", getComponents) // TODO Remove deprecated endpoint after frontend update
 			r.Get("/components", getComponents)
 			r.Put("/components", apps.UpdateComponents(as))
-			r.Get("/", apps.Get(as, cs))
+			r.Get("/", ah.Get)
 			r.Delete("/", apps.Delete(as))
 		})
 	})

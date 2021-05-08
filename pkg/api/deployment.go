@@ -1,12 +1,17 @@
 package api
 
 import (
+	"fmt"
 	"time"
 )
 
 type Deployment struct {
-	ComponentId string
-	PlatformId  string
-	ImageRef    string
-	Updated     time.Time
+	ImageRef string    `json:"image,omitempty"`
+	Updated  time.Time `json:"updated,omitempty"`
+}
+
+func (d *Deployment) String() string {
+	return fmt.Sprintf(
+		"{ImageRef: '%v', Updated: '%s'}", d.ImageRef, d.Updated,
+	)
 }

@@ -58,9 +58,7 @@ func (c *cluster) GetComponents() ([]api.Component, error) {
 	components := make([]api.Component, len(deployments.Items))
 	for i, item := range deployments.Items {
 		components[i] = api.Component{
-			Name:  item.ObjectMeta.Name,
-			Type:  "kubernetes/deployment",
-			Image: item.Spec.Template.Spec.Containers[0].Image,
+			Name: item.ObjectMeta.Name,
 		}
 	}
 
@@ -88,9 +86,7 @@ func (c *cluster) WatchComponents() (internal.Observable, error) {
 				events <- api.Event{
 					EventType: string(event.Type),
 					Object: api.Component{
-						Name:  o.Name,
-						Type:  "k8s.io/api/apps/v1/Deployment",
-						Image: o.Spec.Template.Spec.Containers[0].Image,
+						Name: o.Name,
 					},
 				}
 			default:

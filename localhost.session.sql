@@ -5,7 +5,8 @@ SELECT * FROM platforms;
 SELECT * FROM components;
 SELECT * FROM deployments;
 
-INSERT INTO apps_components(app_id, component_id) VALUES('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', '5bc8884f-da5b-497f-bd87-3b2b9f04a2a0');
+INSERT INTO apps(id, name) VALUES ('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'Demo');
+INSERT INTO apps_components(app_id, component_id) VALUES('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'b707cbc2-967d-4703-8db4-7feb24a71360');
 
 SELECT e.env_name as env, a.name as app, c.name as comp, d.image_ref, d.updated
   FROM apps a

@@ -2,7 +2,10 @@ package database
 
 import (
 	"database/sql"
+	"log"
 	"time"
+
+	"github.com/frohwerk/deputy-backend/internal/util"
 )
 
 type Deployment struct {
@@ -12,25 +15,66 @@ type Deployment struct {
 	Updated     time.Time
 }
 
+type DeploymentUpdater interface {
+	SetImage(componentId, platformId, imageRef string) (*Deployment, error)
+}
+
+type DeploymentLister interface {
+	ListForEnv(componentId, envId string) ([]Deployment, error)
+}
+
+type DeploymentStore interface {
+	DeploymentLister
+	DeploymentUpdater
+}
+
 type deploymentStore struct {
 	*sql.DB
 }
 
-func NewDeploymentStore(db *sql.DB) *deploymentStore {
+func NewDeploymentStore(db *sql.DB) DeploymentStore {
 	return &deploymentStore{db}
 }
 
+func (ds *deploymentStore) ListForEnv(componentId, envId string) ([]Deployment, error) {
+	return ds.queryDeployments(`
+		SELECT d.component_id, d.platform_id, d.image_ref, d.updated
+		FROM platforms p
+		JOIN deployments d ON d.platform_id = p.pf_id
+		WHERE component_id = $1 AND pf_env = $2
+	`, componentId, envId)
+}
+
 func (ds *deploymentStore) SetImage(componentId, platformId, imageRef string) (*Deployment, error) {
-	return ds.queryOne(`
-		INSERT INTO deployments (component_id, platform_id, image_ref) VALUES ($1, $2, $3)
-		ON CONFLICT (component_id, platform_id) DO
-		UPDATE SET image_ref = EXCLUDED.image_ref, updated = CURRENT_TIMESTAMP
-		RETURNING component_id, platform_id, image_ref, updated
+	return ds.queryDeployment(`
+	INSERT INTO deployments (component_id, platform_id, image_ref) VALUES ($1, $2, $3)
+	ON CONFLICT (component_id, platform_id) DO
+	UPDATE SET image_ref = EXCLUDED.image_ref, updated = CURRENT_TIMESTAMP
+	RETURNING component_id, platform_id, image_ref, updated
 	`, componentId, platformId, imageRef)
 }
 
-func (ds *deploymentStore) queryOne(query string, args ...interface{}) (*Deployment, error) {
+func (ds *deploymentStore) queryDeployment(query string, args ...interface{}) (*Deployment, error) {
 	return scanDeployment(ds.DB.QueryRow(query, args...))
+}
+
+func (ds *deploymentStore) queryDeployments(query string, args ...interface{}) ([]Deployment, error) {
+	rows, err := ds.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer util.Close(rows, log.Printf)
+
+	result := make([]Deployment, 0)
+	for rows.Next() {
+		if r, err := scanDeployment(rows); err != nil {
+			return nil, err
+		} else {
+			result = append(result, *r)
+		}
+	}
+
+	return result, nil
 }
 
 func scanDeployment(s scanner) (*Deployment, error) {
