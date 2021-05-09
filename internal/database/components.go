@@ -104,7 +104,7 @@ func (s *componentStore) ListAllForApp(id string) ([]Component, error) {
 
 func (s *componentStore) ListUnassignedForApp(id string) ([]Component, error) {
 	return s.selectComponents(`
-		SELECT c.component_id, c.name, c.updated, COALESCE(c.version, ''), COALESCE(c.image, '')
+		SELECT c.component_id, c.name
 		FROM components c
 		WHERE NOT EXISTS (SELECT * FROM apps_components r WHERE r.component_id = c.component_id and r.app_id = $1)
 	`, id)

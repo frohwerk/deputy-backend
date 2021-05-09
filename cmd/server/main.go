@@ -135,6 +135,7 @@ func Run(cmd *cobra.Command, args []string) {
 	ps := database.NewPlatformStore(db)
 
 	ah := apps.NewHandler(db, as, cs, ds, es, ps)
+	ch := components.NewHandler(cs, ds)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -150,7 +151,7 @@ func Run(cmd *cobra.Command, args []string) {
 		})
 	})
 	mux.Route("/api/components", func(r chi.Router) {
-		r.Get("/", components.List(cs))
+		r.Get("/", ch.List)
 	})
 	mux.Route("/api/envs", func(r chi.Router) {
 		r.Get("/", envs.List(es))
