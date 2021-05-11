@@ -12,6 +12,7 @@ import (
 
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/server/components"
+	"github.com/frohwerk/deputy-backend/cmd/server/deployments"
 	"github.com/frohwerk/deputy-backend/cmd/server/envs"
 	"github.com/frohwerk/deputy-backend/cmd/server/platforms"
 	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
@@ -136,6 +137,7 @@ func Run(cmd *cobra.Command, args []string) {
 
 	ah := apps.NewHandler(db, as, cs, ds, es, ps)
 	ch := components.NewHandler(cs, ds)
+	dh := deployments.NewHandler(db)
 
 	mux := chi.NewRouter()
 	mux.Route("/api/apps", func(r chi.Router) {
@@ -147,12 +149,16 @@ func Run(cmd *cobra.Command, args []string) {
 			r.Get("/components", getComponents)
 			r.Put("/components", apps.UpdateComponents(as))
 			r.Get("/", ah.Get)
+			r.Patch("/", ah.Patch)
 			r.Delete("/", apps.Delete(as))
 		})
 	})
 	mux.Route("/api/components", func(r chi.Router) {
 		r.Get("/", ch.List)
 	})
+
+	mux.Route("/api/deployments", dh.Routes)
+
 	mux.Route("/api/envs", func(r chi.Router) {
 		r.Get("/", envs.List(es))
 		r.Get("/{env}", envs.Get(es))

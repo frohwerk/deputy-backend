@@ -22,7 +22,7 @@ func Create(as database.AppStore) http.HandlerFunc {
 		}
 		defer util.Close(req.Body, log.Printf)
 
-		app, err := tryDecode(resp, req.Body)
+		app, err := tryDecode(req.Body)
 		if err != nil {
 			writeErrorResponse(resp, err)
 			return
@@ -41,7 +41,7 @@ func Create(as database.AppStore) http.HandlerFunc {
 	}
 }
 
-func tryDecode(resp http.ResponseWriter, r io.ReadCloser) (*api.App, error) {
+func tryDecode(r io.ReadCloser) (*api.App, error) {
 	app := new(api.App)
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(app); err != nil {

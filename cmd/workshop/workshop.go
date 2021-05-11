@@ -16,6 +16,12 @@ func init() {
 }
 
 func main() {
+	var t time.Time
+	fmt.Println(t)
+	fmt.Println(t.Location())
+	if 1 == 1 {
+		return
+	}
 	log := logger.WithPrefix("[workshop] ", logger.LEVEL_TRACE)
 	w := &worker{Logger: log}
 

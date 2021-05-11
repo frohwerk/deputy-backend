@@ -1,9 +1,11 @@
 SELECT gen_random_uuid();
 SELECT * FROM envs;
 SELECT * FROM platforms;
+SELECT * FROM deployments;
+
 SELECT * FROM apps;
 SELECT * FROM components;
-SELECT * FROM deployments;
+SELECT * FROM apps_components;
 
 INSERT INTO apps(id, name) VALUES ('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'Demo');
 INSERT INTO apps_components(app_id, component_id) VALUES('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'b707cbc2-967d-4703-8db4-7feb24a71360');
@@ -17,10 +19,26 @@ SELECT e.env_name as env, a.name as app, c.name as comp, d.image_ref, d.updated
   JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
 WHERE a.id = '555d8b8f-0eed-4a6c-a8a1-ca16f579aef2' AND e.env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
 
-SELECT d.component_id, d.platform_id, d.image_ref, d.updated
-  FROM platforms p
-  JOIN deployments d ON d.platform_id = p.pf_id
- WHERE component_id = '' AND pf_env = ''
+SELECT *
+  FROM apps_components ac
+  JOIN platforms p ON 1 = 1
+  JOIN components c ON c.component_id = ac.component_id
+ WHERE ac.app_id = 'a3882005-2f7c-43a0-85f7-3a0375cec6b4' AND p.pf_env = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+
+SELECT c.name, COALESCE(d.image_ref, ''), d.updated
+  FROM apps_components ac
+  JOIN platforms p ON 1 = 1
+  JOIN components c ON c.component_id = ac.component_id
+  LEFT JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
+ WHERE ac.app_id = 'a3882005-2f7c-43a0-85f7-3a0375cec6b4' AND p.pf_env = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+
+SELECT c.name, COALESCE(d.image_ref, ''), d.updated
+  FROM apps_components ac
+  JOIN platforms p ON 1 = 1
+  JOIN components c ON c.component_id = ac.component_id
+  LEFT JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
+ WHERE ac.app_id = 'aca40db4-cea5-4a1d-bb87-271419dc51b5'
+   AND p.pf_env = 'c8f1d2d6-8305-48d6-a613-23cdb67b5a19';
 
 SELECT component_id, name
   FROM components c

@@ -15,6 +15,10 @@ type App struct {
 	Name string
 }
 
+type AppUpdater interface {
+	Update(*App) (*App, error)
+}
+
 type AppDeleter interface {
 	Delete(string) (*App, error)
 }
@@ -23,6 +27,7 @@ type AppStore interface {
 	ListAll() ([]App, error)
 	Create(App) (*App, error)
 	Get(string) (*App, error)
+	AppUpdater
 	AppDeleter
 
 	UpdateComponents(ctx context.Context, id string, components []string) error
@@ -72,6 +77,10 @@ func (s *appStore) Create(app App) (*App, error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+func (s *appStore) Update(app *App) (*App, error) {
+	return s.queryOne(`UPDATE apps SET name = $2 WHERE id = $1 RETURNING id, name`, app.Id, app.Name)
 }
 
 func (s *appStore) Delete(id string) (*App, error) {
