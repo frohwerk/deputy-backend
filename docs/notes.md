@@ -291,3 +291,11 @@ n Platforms (API-Server + Namespace) <-> 1 Environment (Logical Name)
 
 Add environment => Test
 Add platform => https://192.168.178.31:8443 | myproject | 
+
+TODO: Add to documentation
+- PATCH method for deployment resource!
+  https://kubernetes.io/docs/tasks/manage-kubernetes-objects/update-api-object-kubectl-patch/
+  https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#patch-deployment-v1-apps
+- Development environment: Allow image pull accross multiple namespaces
+  oc policy add-role-to-user system:image-puller system:serviceaccount:demo-prod:default --namespace=myproject
+- Algorithm for version comparison
