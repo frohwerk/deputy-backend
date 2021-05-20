@@ -1,4 +1,4 @@
-package main
+package kubernetes
 
 type DeploymentPatch struct {
 	Spec DeploymentSpecPatch `json:"spec,omitempty"`
@@ -19,4 +19,18 @@ type PodSpecPatch struct {
 type ContainerPatch struct {
 	Name  string `json:"name"`
 	Image string `json:"image,omitempty"`
+}
+
+func CreateImagePatch(container, imageRef string) DeploymentPatch {
+	return DeploymentPatch{
+		Spec: DeploymentSpecPatch{
+			Template: PodTemplatePatch{
+				Spec: PodSpecPatch{
+					Containers: []ContainerPatch{
+						{Name: container, Image: imageRef},
+					},
+				},
+			},
+		},
+	}
 }

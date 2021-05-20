@@ -10,6 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
 )
 
 func main() {
@@ -48,19 +50,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println("Using namespace", namespace)
 
-	spec := DeploymentPatch{
-		Spec: DeploymentSpecPatch{
-			Template: PodTemplatePatch{
-				Spec: PodSpecPatch{
-					Containers: []ContainerPatch{
-						{Name: "node-hello-world", Image: fmt.Sprintf("172.30.1.1:5000/myproject/node-hello-world:%s", version)},
-					},
-				},
-			},
-		},
-	}
-
-	patch, err := json.Marshal(spec)
+	patch, err := json.Marshal(k8s.CreateImagePatch("node-hello-world", fmt.Sprintf("%s:%s", "172.30.1.1:5000/myproject/node-hello-world", version)))
 	if err != nil {
 		return err
 	}

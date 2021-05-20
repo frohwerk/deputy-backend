@@ -119,11 +119,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	shutdown := sync.WaitGroup{}
-	shutdown.Add(1)
-
+	done := make(chan interface{})
 	go func() {
-		defer shutdown.Done()
+		defer func() { done <- nil }()
 		handler := &deploymentHandler{platform, components, deployments}
 		for event := range deploymentsWatch.ResultChan() {
 			err := handler.handleEvent(event)
@@ -131,24 +129,29 @@ func main() {
 				log.Error("error handling deployment event: %s", err)
 			}
 		}
+		log.Info("deployments watch has ended")
 	}()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	for {
-		switch sig := <-signals; sig {
-		case os.Interrupt:
-			fmt.Println("Received SIGINT")
-			deploymentsWatch.Stop()
-			shutdown.Wait()
+		select {
+		case <-done:
 			return
-		case os.Kill:
-			fmt.Println("Received SIGTERM")
-			deploymentsWatch.Stop()
-			return
-		default:
-			fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
+		case sig := <-signals:
+			switch sig {
+			case os.Interrupt:
+				log.Info("Received SIGINT")
+				deploymentsWatch.Stop()
+			case os.Kill:
+				log.Info("Received SIGTERM")
+				deploymentsWatch.Stop()
+				return
+			default:
+				fmt.Fprintf(os.Stderr, "Received unexpected signal: %v\n", sig)
+
+			}
 		}
 	}
 }

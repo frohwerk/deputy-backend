@@ -23,6 +23,10 @@ type PlatformGetter interface {
 	Get(id string) (*api.Platform, error)
 }
 
+type PlatformLookup interface {
+	Lookup(envId, name string) (*api.Platform, error)
+}
+
 type PlatformUpdater interface {
 	Update(p *api.Platform) (*api.Platform, error)
 }
@@ -35,6 +39,7 @@ type PlatformStore interface {
 	PlatformLister
 	PlatformCreator
 	PlatformGetter
+	PlatformLookup
 	PlatformUpdater
 	PlatformDeleter
 }
@@ -75,6 +80,14 @@ func (s *platformStore) Get(id string) (*api.Platform, error) {
 		FROM platforms
 		WHERE pf_id = $1
 	`, id)
+}
+
+func (s *platformStore) Lookup(envId, name string) (*api.Platform, error) {
+	return s.queryOne(`
+		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		FROM platforms
+		WHERE pf_env = $1 AND pf_name = $2
+	`, envId, name)
 }
 
 func (s *platformStore) Update(p *api.Platform) (*api.Platform, error) {
