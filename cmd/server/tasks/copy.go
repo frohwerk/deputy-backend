@@ -152,7 +152,7 @@ func createPatches(source, target deployments) []patch {
 				continue
 			}
 			fmt.Println("TODO: replace hard coded platform name")
-			patches = append(patches, patch{Component: s.Name, Platform: "Outer Layer", Patch: k8s.CreateImagePatch(s.Name, s.ImageRef)})
+			patches = append(patches, patch{Component: s.Name, Platform: "minishift", Patch: k8s.CreateImagePatch(s.Name, s.ImageRef)})
 		}
 	}
 

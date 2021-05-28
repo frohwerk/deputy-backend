@@ -7,6 +7,8 @@ SELECT * FROM apps;
 SELECT * FROM components;
 SELECT * FROM apps_components;
 
+SELECT * FROM files;
+
 INSERT INTO apps(id, name) VALUES ('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'Demo');
 INSERT INTO apps_components(app_id, component_id) VALUES('555d8b8f-0eed-4a6c-a8a1-ca16f579aef2', 'b707cbc2-967d-4703-8db4-7feb24a71360');
 
@@ -18,6 +20,48 @@ SELECT e.env_name as env, a.name as app, c.name as comp, d.image_ref, d.updated
   JOIN platforms p ON p.pf_env = e.env_id
   JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
 WHERE a.id = '555d8b8f-0eed-4a6c-a8a1-ca16f579aef2' AND e.env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+
+CREATE TABLE deployments_history (
+    component_id VARCHAR(36) NOT NULL,
+    platform_id  VARCHAR(36) NOT NULL,
+    valid_from   TIMESTAMP NOT NULL,
+    valid_until  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    image_ref    VARCHAR(150) NOT NULL,
+    PRIMARY KEY (component_id, platform_id, valid_from),
+    FOREIGN KEY (platform_id) REFERENCES platforms (pf_id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
+);
+
+DELETE FROM deployments_history WHERE component_id = '9ff53c7a-1451-424d-b262-5ae0b6f3c65b' AND platform_id = '3146c2ee-bdd7-40ed-83c2-fe9efdff4a95';
+
+SELECT * FROM deployments WHERE component_id = '9ff53c7a-1451-424d-b262-5ae0b6f3c65b' AND platform_id = '3146c2ee-bdd7-40ed-83c2-fe9efdff4a95';
+SELECT * FROM deployments_history WHERE component_id = '9ff53c7a-1451-424d-b262-5ae0b6f3c65b' AND platform_id = '3146c2ee-bdd7-40ed-83c2-fe9efdff4a95';
+
+SELECT * FROM deployments;
+SELECT * FROM deployments_history;
+
+UPDATE deployments
+SET image_ref = '172.30.1.1:5000/myproject/node-hello-world:1.0.4'
+WHERE component_id = '9ff53c7a-1451-424d-b262-5ae0b6f3c65b' AND platform_id = '3146c2ee-bdd7-40ed-83c2-fe9efdff4a95';
+
+DROP TRIGGER deployments_trigger_update ON deployments;
+DROP FUNCTION deployment_history_update;
+DROP PROCEDURE deployment_history_update;
+
+CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
+  BEGIN
+    NEW.updated := CURRENT_TIMESTAMP;
+    INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
+    VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+
+--REFERENCING OLD TABLE AS old
+CREATE TRIGGER deployments_trigger_update
+BEFORE UPDATE ON deployments
+FOR EACH ROW
+EXECUTE PROCEDURE deployment_history_update();
 
 SELECT *
   FROM apps_components ac
