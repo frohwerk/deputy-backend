@@ -299,3 +299,5 @@ TODO: Add to documentation
 - Development environment: Allow image pull accross multiple namespaces
   oc policy add-role-to-user system:image-puller system:serviceaccount:demo-prod:default --namespace=myproject
 - Algorithm for version comparison
+- Using wildcard certificates for development:
+  https://github.com/jsha/minica

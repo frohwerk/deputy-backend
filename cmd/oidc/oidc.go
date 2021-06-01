@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/coreos/go-oidc"
+	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/keycloak"
+	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/security"
+	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/whoami"
 	"github.com/go-chi/chi"
 	"golang.org/x/oauth2"
 )
@@ -27,12 +31,22 @@ type ServerApplication struct {
 func main() {
 	ctx := context.Background()
 	defer func() { time.Sleep(500 * time.Millisecond) }()
+
+	wd, _ := os.Getwd()
+	fmt.Println("Working directory: ", wd)
+
 	mux := chi.NewMux()
 	app := new(ServerApplication)
-	app.Addr = ":8080"
+	app.Addr = ":443"
 	app.Handler = mux
 
-	provider, err := oidc.NewProvider(ctx, "http://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo")
+	fmt.Println("TODO: add error handling for reverse proxy target host")
+	frontendRoute, _ := url.Parse("http://localhost:4200")
+	frontend := httputil.NewSingleHostReverseProxy(frontendRoute)
+	backendRoute, _ := url.Parse("http://localhost:8080")
+	backend := httputil.NewSingleHostReverseProxy(backendRoute)
+
+	provider, err := oidc.NewProvider(ctx, "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Scanln()
@@ -46,92 +60,21 @@ func main() {
 		ClientID:     "test",
 		ClientSecret: "43640e4d-b00f-4f33-a9f9-edb99645ba08",
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "http://localhost:8080/auth/keycloak/callback",
+		RedirectURL:  "https://127.0.0.1.nip.io/auth/keycloak/callback",
 		Scopes:       []string{oidc.ScopeOpenID},
 	}
+	config.Endpoint.AuthStyle = oauth2.AuthStyleInHeader
 
-	jwks := oidc.NewRemoteKeySet(ctx, "http://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo/protocol/openid-connect/certs")
+	jwks := oidc.NewRemoteKeySet(ctx, "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo/protocol/openid-connect/certs")
 
-	mux.Handle("/auth/keycloak/callback", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
+	mux.Handle("/login", keycloak.NewLoginHandler(&config))
+	mux.Handle("/logout", keycloak.NewLogoutHandler("https://keycloak-myproject.192.168.178.31.nip.io", "demo"))
+	mux.Handle("/auth/keycloak/callback", keycloak.NewCallbackHandler(&config))
 
-		oauthToken, err := config.Exchange(r.Context(), code)
-		if err != nil {
-			rw.Write([]byte(fmt.Sprintln(err)))
-			return
-		}
+	mux.Handle("/whoami", whoami.NewHandler(&config, jwks))
 
-		if err := SetToken(rw, oauthToken); err != nil {
-			rw.Write([]byte(fmt.Sprintln(err)))
-			return
-		}
-
-		http.Redirect(rw, r, "/whoami", http.StatusFound)
-	}))
-
-	mux.Handle("/login", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		http.Redirect(rw, r, config.AuthCodeURL(""), http.StatusFound)
-	}))
-
-	mux.Handle("/logout", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		http.SetCookie(rw, &http.Cookie{Name: "token"})
-		rw.Write([]byte(`<html><head></head><body><p>Bye!<p><a href="/login">Login with Keycloak</a></body></html>`))
-	}))
-
-	mux.Handle("/whoami", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		oauthToken, err := GetToken(r)
-		if err != nil {
-			rw.Write([]byte(err.Error()))
-			return
-		}
-
-		if !oauthToken.Valid() {
-			oauthToken, err = config.TokenSource(r.Context(), oauthToken).Token()
-			if err != nil {
-				rw.Write([]byte(err.Error()))
-				return
-			}
-			if err := SetToken(rw, oauthToken); err != nil {
-				rw.Write([]byte(fmt.Sprintln(err)))
-				return
-			}
-		}
-
-		rw.Write([]byte(fmt.Sprintf("Token expires: %v", oauthToken.Expiry)))
-		rw.Write([]byte("\n\n"))
-		rw.Write([]byte(oauthToken.AccessToken))
-		rw.Write([]byte("\n\n"))
-		rw.Write([]byte(oauthToken.RefreshToken))
-		rw.Write([]byte("\n\n"))
-
-		payload, err := jwks.VerifySignature(r.Context(), oauthToken.AccessToken)
-		if err != nil {
-			rw.Write([]byte(fmt.Sprintf("%v", err)))
-			return
-		}
-
-		rw.Write([]byte(payload))
-		rw.Write([]byte("\n\n"))
-
-		claims := &Claims{}
-		if err := json.Unmarshal(payload, claims); err != nil {
-			rw.Write([]byte(fmt.Sprintf("%v", err)))
-			return
-		}
-
-		rw.Write([]byte(fmt.Sprintf("ID: %s\n", claims.ID)))
-		rw.Write([]byte(fmt.Sprintf("Issuer: %s\n", claims.Issuer)))
-		rw.Write([]byte(fmt.Sprintf("Subject: %s\n", claims.Subject)))
-		rw.Write([]byte(fmt.Sprintf("Audience: %s\n", claims.Audience)))
-		rw.Write([]byte(fmt.Sprintf("NotBefore: %v\n", claims.NotBefore)))
-		rw.Write([]byte(fmt.Sprintf("IssuedAt: %v\n", time.Unix(int64(*claims.IssuedAt), 0))))
-		rw.Write([]byte(fmt.Sprintf("Expiry: %v\n", time.Unix(int64(*claims.Expiry), 0))))
-		rw.Write([]byte(fmt.Sprintf("PreferredUsername: %s\n", claims.PreferredUsername)))
-	}))
-
-	mux.Handle("/*", http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Write([]byte(fmt.Sprintln(r.Method, r.URL, r.Proto)))
-	}))
+	mux.Handle("/*", security.NewDecorator(&config, frontend))
+	mux.Handle("/api/*", security.NewDecorator(&config, backend))
 
 	app.start()
 
@@ -139,7 +82,9 @@ func main() {
 }
 
 func (server *ServerApplication) start() {
-	go func() { server.ListenAndServe() }()
+	go func() {
+		server.ListenAndServeTLS("certificates/127.0.0.1.nip.io/cert.pem", "certificates/127.0.0.1.nip.io/key.pem")
+	}()
 }
 
 func (server *ServerApplication) awaitShutdown() {

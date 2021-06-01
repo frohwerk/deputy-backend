@@ -23,16 +23,43 @@ CREATE TABLE components (
     PRIMARY KEY (component_id)
 );
 
+-- Deployments entity
 CREATE TABLE deployments (
     component_id VARCHAR(36) NOT NULL,
     platform_id  VARCHAR(36) NOT NULL,
-    image_ref    VARCHAR(150) NOT NULL,
     updated      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    image_ref    VARCHAR(150) NOT NULL,
     PRIMARY KEY (component_id, platform_id),
     FOREIGN KEY (platform_id) REFERENCES platforms (pf_id) ON DELETE CASCADE,
     FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
 );
 
+CREATE TABLE deployments_history (
+    component_id VARCHAR(36) NOT NULL,
+    platform_id  VARCHAR(36) NOT NULL,
+    valid_from   TIMESTAMP NOT NULL,
+    valid_until  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    image_ref    VARCHAR(150) NOT NULL,
+    PRIMARY KEY (component_id, platform_id, valid_from),
+    FOREIGN KEY (platform_id) REFERENCES platforms (pf_id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
+);
+
+CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
+  BEGIN
+    NEW.updated := CURRENT_TIMESTAMP;
+    INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
+    VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_deployments_update
+BEFORE UPDATE ON deployments
+FOR EACH ROW
+EXECUTE PROCEDURE deployment_history_update();
+
+-- Apps entity
 DROP TABLE IF EXISTS apps;
 CREATE TABLE apps (
     id VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
