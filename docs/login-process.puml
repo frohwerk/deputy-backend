@@ -1,0 +1,54 @@
+@startuml Login-Prozess
+
+skinparam Shadowing false
+skinparam Monochrome true
+skinparam Handwritten false
+skinparam Linetype ortho
+
+skinparam sequence {
+    MessageAlign center
+}
+
+hide footbox
+
+actor "User" as user
+participant "Browser" as browser
+participant "OIDC proxy" as proxy
+participant "OIDC provider" as provider
+participant "frontend\nwebserver" as frontend
+
+user -> browser: Navigate to startpage
+activate browser
+browser -> proxy: GET /
+activate proxy
+browser <- proxy: redirect to provider/login
+deactivate proxy
+browser -> provider: GET /login
+activate provider
+browser <- provider: login.html
+deactivate provider
+deactivate browser
+user -> browser: enter credentials
+activate browser
+browser -> provider: submit login form
+activate provider
+browser <- provider: redirect to proxy/callback?code=1
+deactivate provider
+browser -> proxy: GET /callback?code=1
+activate proxy
+proxy -> provider: POST token?code=1&clientSecret=a
+activate provider
+proxy <- provider: OAuth-Token
+deactivate provider
+browser <- proxy: redirect to proxy/\nSet-Cookie: token ...
+deactivate proxy
+browser -> proxy: GET /
+activate proxy
+deactivate provider
+proxy -> frontend: GET /
+proxy <- frontend: index.html
+browser <- proxy: index.html
+deactivate proxy
+deactivate browser
+
+@enduml

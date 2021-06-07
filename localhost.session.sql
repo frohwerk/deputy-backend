@@ -40,6 +40,10 @@ SELECT * FROM deployments_history WHERE component_id = '9ff53c7a-1451-424d-b262-
 SELECT * FROM deployments;
 SELECT * FROM deployments_history;
 
+SELECT pg_notify('demo_channel', CONCAT('Hallo', ' ', 'Welt', '!'));
+
+NOTIFY deployments, 'Test';
+
 UPDATE deployments
 SET image_ref = '172.30.1.1:5000/myproject/node-hello-world:1.0.4'
 WHERE component_id = '9ff53c7a-1451-424d-b262-5ae0b6f3c65b' AND platform_id = '3146c2ee-bdd7-40ed-83c2-fe9efdff4a95';
@@ -53,7 +57,6 @@ CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
     NEW.updated := CURRENT_TIMESTAMP;
     INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
     VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
-    RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
 
