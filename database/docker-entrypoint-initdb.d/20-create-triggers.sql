@@ -1,17 +1,26 @@
 -- History for deployments table
-CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
+CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
   BEGIN
-    NEW.updated := CURRENT_TIMESTAMP;
-    INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
-    VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
-    RETURN NEW;
+    CASE TG_OP
+      WHEN 'INSERT' THEN
+        NEW.updated := CURRENT_TIMESTAMP;
+        RETURN NEW;
+      WHEN 'UPDATE' THEN
+        NEW.updated := CURRENT_TIMESTAMP;
+        INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
+        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
+        RETURN NEW;
+      WHEN 'DELETE' THEN
+        INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
+        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, CURRENT_TIMESTAMP, OLD.image_ref);
+        RETURN OLD;
+    END CASE;
   END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER on_deployments_update
-BEFORE UPDATE ON deployments
-FOR EACH ROW
-EXECUTE PROCEDURE deployment_history_update();
+CREATE TRIGGER write_deployments_history
+BEFORE INSERT OR UPDATE OR DELETE ON deployments
+FOR EACH ROW EXECUTE FUNCTION write_deployments_history();
 
 -- SELECT CONCAT(NEW.component_id, ';', NEW.platform_id';', NEW.valid_from) INTO payload;
 -- payload := CONCAT('Hallo', ' ', 'Welt', '!');
