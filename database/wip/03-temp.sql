@@ -169,6 +169,7 @@ SELECT * FROM apps_components_history WHERE char_length(app_id) < 20 OR char_len
 SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
 
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('-example', 'integration') ORDER BY 1, 2, 3, 4;
+SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('example', '-integration') ORDER BY 1, 2, 3, 4;
 ------------------------------------------------------------------------------------------------------------------------------------------------
   SELECT t.app_id, p.env_id, t.valid_from, c.component_id, d.image_ref
     FROM platforms p

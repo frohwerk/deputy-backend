@@ -6,24 +6,22 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
     _timestamp  timestamp = CURRENT_TIMESTAMP;
   BEGIN
     CASE TG_OP
+
       WHEN 'INSERT' THEN
         NEW.updated := COALESCE(NEW.updated, _timestamp);
         FOR app IN
           SELECT DISTINCT app_id FROM apps_components WHERE component_id = NEW.component_id
         LOOP
-          RAISE NOTICE 'insert into apps_timeline: %, %', app, NEW.updated;
           INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, NEW.updated) ON CONFLICT DO NOTHING;
         END LOOP;
         RETURN NEW;
+
       WHEN 'UPDATE' THEN
         RAISE NOTICE 'update deployments: %, %, %, %', OLD.component_id, OLD.platform_id, NEW.updated, NEW.image_ref;
-        RAISE NOTICE 'update deployments (timestamp): %', NEW.updated;
-        SELECT INTO NEW.updated
         CASE
-          WHEN NEW.updated = OLD.updated THEN _timestamp
-          ELSE COALESCE(NEW.updated, _timestamp)
-        END;
-        RAISE NOTICE 'update deployments (timestamp): %', NEW.updated;
+          WHEN NEW.image_ref = OLD.image_ref THEN RETURN NEW;
+          WHEN NEW.updated = OLD.updated OR NEW.updated IS NULL THEN NEW.updated = _timestamp;
+        END CASE;
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
         VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
         FOR app IN
@@ -33,16 +31,17 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
           INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, NEW.updated) ON CONFLICT DO NOTHING;
         END LOOP;
         RETURN NEW;
+
       WHEN 'DELETE' THEN
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
         VALUES(OLD.component_id, OLD.platform_id, OLD.updated, CURRENT_TIMESTAMP, OLD.image_ref);
         FOR app IN
           SELECT DISTINCT app_id FROM apps_components WHERE component_id = OLD.component_id
         LOOP
-          RAISE NOTICE 'insert into apps_timeline: %, %', app, OLD.updated;
           INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, OLD.updated) ON CONFLICT DO NOTHING;
         END LOOP;
         RETURN OLD;
+
     END CASE;
   END;
 $$ LANGUAGE plpgsql;

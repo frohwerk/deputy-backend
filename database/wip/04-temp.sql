@@ -61,4 +61,4 @@ INSERT INTO deployments (component_id, platform_id, image_ref) VALUES ('componen
 -- test case #6
 UPDATE deployments SET image_ref = 'image-registry.cluster.local/my-namespace/b:4.1' WHERE component_id = 'component-b' AND platform_id = 'minishift-si';
 ---------------------------------------------------------------------------------------------------------------------------------------------------
-UPDATE deployments SET image_ref = 'image-registry.cluster.local/my-namespace/b:5.0.1.RELEASE' WHERE component_id = 'component-b' AND platform_id = 'minishift-si';
+UPDATE deployments SET image_ref = 'image-registry.cluster.local/my-namespace/b:5.1.0' WHERE component_id = 'component-b' AND platform_id = 'minishift-si';
