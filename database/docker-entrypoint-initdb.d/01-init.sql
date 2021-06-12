@@ -46,20 +46,6 @@ CREATE TABLE deployments_history (
     FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE
 );
 
-CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
-  BEGIN
-    NEW.updated := CURRENT_TIMESTAMP;
-    INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
-    VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
-    RETURN NEW;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER on_deployments_update
-BEFORE UPDATE ON deployments
-FOR EACH ROW
-EXECUTE PROCEDURE deployment_history_update();
-
 -- Apps entity
 DROP TABLE IF EXISTS apps;
 CREATE TABLE apps (
@@ -67,6 +53,16 @@ CREATE TABLE apps (
     name  VARCHAR(50) UNIQUE,
     PRIMARY KEY (id)
 );
+
+DROP TABLE IF EXISTS apps_timeline;
+CREATE TABLE apps_timeline (
+  app_id       VARCHAR(36) NOT NULL,
+  valid_from   TIMESTAMP NOT NULL,
+  FOREIGN KEY (app_id) REFERENCES apps (id) ON DELETE CASCADE,
+  PRIMARY KEY (app_id, valid_from)
+);
+-- TODO:
+-- Write apps_timeline entry on updates for apps_components or deployments
 
 -- Relationship apps<->components
 DROP TABLE IF EXISTS apps_components;
@@ -89,20 +85,6 @@ CREATE TABLE apps_components_history (
     FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE,
     PRIMARY KEY (app_id, component_id, valid_from)
 );
-
-CREATE OR REPLACE FUNCTION apps_components_history() RETURNS trigger AS $$
-  BEGIN
-    NEW.updated := CURRENT_TIMESTAMP;
-    INSERT INTO apps_components_history (app_id, component_id, valid_from, valid_until)
-    VALUES(OLD.app_id, OLD.component_id, OLD.updated, NEW.updated);
-    RETURN NEW;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER apps_components_history
-BEFORE UPDATE ON apps_components
-FOR EACH ROW
-EXECUTE PROCEDURE apps_components_history();
 
 -- Entity files
 DROP TABLE IF EXISTS files;

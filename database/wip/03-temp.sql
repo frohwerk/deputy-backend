@@ -1,16 +1,7 @@
 SELECT routine_catalog, routine_schema, routine_name, routine_type, external_language, routine_definition FROM information_schema.routines WHERE routine_schema = 'public';
 SELECT trigger_name, event_manipulation, event_object_catalog, event_object_schema, event_object_table, action_timing, action_statement FROM information_schema.triggers WHERE trigger_schema = 'public';
 
-DROP TABLE IF EXISTS draft.apps;
-DROP TABLE IF EXISTS draft.apps_timeline;
-DROP TABLE IF EXISTS draft.components;
-DROP TABLE IF EXISTS draft.envs;
-DROP TABLE IF EXISTS draft.platforms;
-DROP TABLE IF EXISTS draft.apps_components_history;
-DROP TABLE IF EXISTS draft.apps_components;
-DROP TABLE IF EXISTS draft.deployments;
-DROP TABLE IF EXISTS draft.deployments_history;
-
+DROP SCHEMA IF EXISTS draft;
 CREATE SCHEMA draft;
 
 CREATE TABLE draft.apps (
@@ -158,61 +149,36 @@ CREATE VIEW draft.deployments_all AS
    UNION
   SELECT component_id, platform_id, valid_from, valid_until, image_ref FROM draft.deployments_history;
 
-CREATE OR REPLACE VIEW draft.result AS
-SELECT apps.name as app_name,
-       components.name as component_name, apps_components.valid_from as component_valid_from, apps_components.valid_until as component_valid_until,
-       image_ref as image, deployments.valid_from as deployment_valid_from, deployments.valid_until as deployment_valid_until
-  FROM draft.apps
- INNER JOIN draft.apps_components_all apps_components
-    ON apps_components.app_id = apps.id
- INNER JOIN draft.components
-    ON components.id = apps_components.component_id
-  LEFT JOIN draft.deployments_all deployments
-    ON deployments.component_id = components.id
- WHERE apps.id = 'demo'
- ORDER BY components.id, component_valid_from, deployment_valid_from
-;
-SELECT * FROM draft.result;
+CREATE VIEW draft.apps_history AS
+SELECT t.app_id, t.iteration, t.valid_from, t.valid_until, c.component_id, d.image_ref --, d.valid_from, d.valid_until
+  FROM draft.apps_timeline t
+ INNER JOIN draft.apps_components_all c
+    ON c.app_id = t.app_id
+   AND c.valid_from <= t.valid_from AND t.valid_from < COALESCE(c.valid_until, CURRENT_TIMESTAMP)
+  LEFT JOIN draft.deployments_all d
+    ON d.component_id = c.component_id
+   AND d.valid_from <= t.valid_from AND t.valid_from < COALESCE(d.valid_until, CURRENT_TIMESTAMP)
+ WHERE t.app_id = 'demo'
+ ORDER BY t.valid_from, c.component_id, d.valid_from;
 
-SELECT * FROM draft.apps_components;
-SELECT * FROM draft.apps_components_history;
-SELECT * FROM draft.deployments;
-SELECT * FROM draft.deployments_history;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM deployments WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM apps_components WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM deployments_history WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM apps_components_history WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
 
-WITH apps_history AS (
-  SELECT app_id, valid_from as updated FROM draft.apps_components_all
-   UNION
-  SELECT app_id, valid_until as updated FROM draft.apps_components_all
-   UNION
-  SELECT app_id, deployments_all.valid_from as updated FROM draft.apps_components_all JOIN draft.deployments_all on deployments_all.component_id = apps_components_all.component_id
-   UNION
-  SELECT app_id, deployments_all.valid_until as updated FROM draft.apps_components_all JOIN draft.deployments_all on deployments_all.component_id = apps_components_all.component_id
-) SELECT updated FROM apps_history WHERE app_id = 'demo' AND updated IS NOT NULL ORDER BY updated;
-
-WITH history AS (
-  SELECT apps.name as app_name,
-         components.name as component_name, apps_components.valid_from as component_valid_from, apps_components.valid_until as component_valid_until,
-         image_ref as image, deployments.valid_from as deployment_valid_from, deployments.valid_until as deployment_valid_until
-    FROM draft.apps
-   INNER JOIN draft.apps_components_all apps_components
-      ON apps_components.app_id = apps.id
-   INNER JOIN draft.components
-      ON components.id = apps_components.component_id
-    LEFT JOIN draft.deployments_all deployments
-      ON deployments.component_id = components.id
-     AND deployments.valid_from <= apps_components.valid_from
-     AND (apps_components.valid_until IS NULL OR deployments.valid_until IS NULL OR deployments.valid_until >= apps_components.valid_until)
-   WHERE apps.id = 'demo'
-   ORDER BY component_valid_from, deployment_valid_from
-) SELECT * FROM history;
-
-SELECT *
-  FROM draft.apps
- INNER JOIN draft.apps_components_history
-    ON apps_components_history.app_id = apps.id
- INNER JOIN draft.components
-    ON components.id = apps_components_history.component_id
-  LEFT JOIN draft.deployments_history
-    ON deployments_history.component_id = components.id
- WHERE apps.id = 'demo'
-;
+SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('-example', 'integration') ORDER BY 1, 2, 3, 4;
+------------------------------------------------------------------------------------------------------------------------------------------------
+  SELECT t.app_id, p.env_id, t.valid_from, c.component_id, d.image_ref
+    FROM platforms p
+   CROSS JOIN apps_timeline t
+   INNER JOIN apps_components_all c
+      ON c.app_id = t.app_id
+     AND c.valid_from <= t.valid_from AND t.valid_from < COALESCE(c.valid_until, CURRENT_TIMESTAMP)
+    LEFT JOIN deployments_all d
+      ON d.component_id = c.component_id AND d.platform_id = p.id
+     AND d.valid_from <= t.valid_from AND t.valid_from < COALESCE(d.valid_until, CURRENT_TIMESTAMP)
+ WHERE t.app_id = 'tester' AND p.env_id = 'integration'
+ ORDER BY 1, 2, 3, 4;
+------------------------------------------------------------------------------------------------------------------------------------------------
