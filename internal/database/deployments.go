@@ -40,8 +40,8 @@ func (ds *deploymentStore) ListForEnv(componentId, envId string) ([]Deployment, 
 	return ds.queryDeployments(`
 		SELECT d.component_id, d.platform_id, d.image_ref, d.updated
 		FROM platforms p
-		JOIN deployments d ON d.platform_id = p.pf_id
-		WHERE component_id = $1 AND pf_env = $2
+		JOIN deployments d ON d.platform_id = p.id
+		WHERE component_id = $1 AND env_id = $2
 	`, componentId, envId)
 }
 

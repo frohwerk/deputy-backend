@@ -1,26 +1,27 @@
 DROP TABLE IF EXISTS envs;
 CREATE TABLE envs (
-    env_id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    env_name       VARCHAR(50) UNIQUE NOT NULL
+    id         VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    name       VARCHAR(50) NOT NULL UNIQUE,
+    PRIMARY KEY (id)
 );
 
 DROP TABLE IF EXISTS platforms;
 CREATE TABLE platforms (
-    pf_id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    pf_env        VARCHAR(36) NOT NULL,
-    pf_name       VARCHAR(50),
-    pf_api_server VARCHAR(256),
-    pf_namespace  VARCHAR(50),
-    pf_secret     VARCHAR(2048),
-    UNIQUE (pf_env, pf_name),
-    FOREIGN KEY (pf_env) REFERENCES envs(env_id) ON DELETE CASCADE
+    id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    env_id     VARCHAR(36) NOT NULL,
+    name       VARCHAR(50),
+    api_server VARCHAR(256),
+    namespace  VARCHAR(50),
+    secret     VARCHAR(2048),
+    UNIQUE (env_id, name),
+    FOREIGN KEY (env_id) REFERENCES envs (id) ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS components;
 CREATE TABLE components (
-    component_id VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
-    name         VARCHAR(50) NOT NULL UNIQUE,
-    PRIMARY KEY (component_id)
+    id    VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    name  VARCHAR(50) NOT NULL UNIQUE,
+    PRIMARY KEY (id)
 );
 
 -- Deployments entity
@@ -30,8 +31,8 @@ CREATE TABLE deployments (
     updated      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     image_ref    VARCHAR(150) NOT NULL,
     PRIMARY KEY (component_id, platform_id),
-    FOREIGN KEY (platform_id) REFERENCES platforms (pf_id) ON DELETE CASCADE,
-    FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
+    FOREIGN KEY (platform_id) REFERENCES platforms (id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE
 );
 
 CREATE TABLE deployments_history (
@@ -41,8 +42,8 @@ CREATE TABLE deployments_history (
     valid_until  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     image_ref    VARCHAR(150) NOT NULL,
     PRIMARY KEY (component_id, platform_id, valid_from),
-    FOREIGN KEY (platform_id) REFERENCES platforms (pf_id) ON DELETE CASCADE,
-    FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
+    FOREIGN KEY (platform_id) REFERENCES platforms (id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE
 );
 
 CREATE OR REPLACE FUNCTION deployment_history_update() RETURNS trigger AS $$
@@ -62,43 +63,63 @@ EXECUTE PROCEDURE deployment_history_update();
 -- Apps entity
 DROP TABLE IF EXISTS apps;
 CREATE TABLE apps (
-    id VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
-    name VARCHAR(50) UNIQUE
+    id    VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    name  VARCHAR(50) UNIQUE,
+    PRIMARY KEY (id)
 );
 
+-- Relationship apps<->components
 DROP TABLE IF EXISTS apps_components;
 CREATE TABLE apps_components (
-    app_id VARCHAR(36) NOT NULL,
-    component_id VARCHAR(36) NOT NULL,
+    app_id        VARCHAR(36) NOT NULL,
+    component_id  VARCHAR(36) NOT NULL,
+    updated       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (app_id, component_id),
     FOREIGN KEY (app_id) REFERENCES apps (id) ON DELETE CASCADE,
-    FOREIGN KEY (component_id) REFERENCES components (component_id) ON DELETE CASCADE
+    FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS apps_components_history;
+CREATE TABLE apps_components_history (
+    app_id        VARCHAR(36) NOT NULL,
+    component_id  VARCHAR(36) NOT NULL,
+    valid_from    TIMESTAMP NOT NULL,
+    valid_until   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (app_id) REFERENCES apps (id) ON DELETE CASCADE,
+    FOREIGN KEY (component_id) REFERENCES components (id) ON DELETE CASCADE,
+    PRIMARY KEY (app_id, component_id, valid_from)
+);
+
+CREATE OR REPLACE FUNCTION apps_components_history() RETURNS trigger AS $$
+  BEGIN
+    NEW.updated := CURRENT_TIMESTAMP;
+    INSERT INTO apps_components_history (app_id, component_id, valid_from, valid_until)
+    VALUES(OLD.app_id, OLD.component_id, OLD.updated, NEW.updated);
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER apps_components_history
+BEFORE UPDATE ON apps_components
+FOR EACH ROW
+EXECUTE PROCEDURE apps_components_history();
+
+-- Entity files
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (
-    file_id VARCHAR(36) NOT NULL,
-    file_digest VARCHAR(71) NOT NULL,
-    file_path VARCHAR(4096) NOT NULL,
-    file_parent VARCHAR(36) DEFAULT NULL,
-    PRIMARY KEY (file_id),
-    UNIQUE (file_digest, file_path),
-    FOREIGN KEY (file_parent) REFERENCES files(file_id) ON DELETE CASCADE
+    id         VARCHAR(36) NOT NULL,
+    digest     VARCHAR(71) NOT NULL,
+    path       VARCHAR(4096) NOT NULL,
+    parent_id  VARCHAR(36) DEFAULT NULL,
+    FOREIGN KEY (parent_id) REFERENCES files (id) ON DELETE CASCADE,
+    UNIQUE (digest, path),
+    PRIMARY KEY (id)
 );
 
 DROP TABLE IF EXISTS images_artifacts;
 CREATE TABLE images_artifacts (
-    image_id VARCHAR(150) NOT NULL,
-    file_id VARCHAR(36) NOT NULL,
+    image_id  VARCHAR(150) NOT NULL,
+    file_id   VARCHAR(36) NOT NULL,
     PRIMARY KEY (image_id, file_id),
-    FOREIGN KEY (file_id) REFERENCES files(file_id) ON DELETE CASCADE
+    FOREIGN KEY (file_id) REFERENCES files (id) ON DELETE CASCADE
 );
-
--- TODO: neue tabelle für die component-platform relationship
--- CREATE TABLE platforms_components (
---     platform_id   VARCHAR(36) NOT NULL,
---     component_id   VARCHAR(36) NOT NULL,
---     PRIMARY KEY (platform_id, component_id)
---     FOREIGN KEY (platform_id)  REFERENCES platforms(pf_id) ON DELETE CASCADE,
---     FOREIGN KEY (component_id) REFERENCES components(id)   ON DELETE CASCADE
--- );

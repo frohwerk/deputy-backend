@@ -1,70 +1,54 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"math/rand"
 	"os"
-	"os/signal"
 	"time"
 
-	"github.com/frohwerk/deputy-backend/internal/logger"
-	"github.com/frohwerk/deputy-backend/internal/task"
+	"github.com/frohwerk/deputy-backend/internal/database"
 )
 
-func init() {
-	rand.Seed(time.Now().Unix())
+type store struct {
+	*sql.DB
 }
 
 func main() {
-	var t time.Time
-	fmt.Println(t)
-	fmt.Println(t.Location())
-	if 1 == 1 {
-		return
+	db := &store{database.Open()}
+	// rows, err := db.Query(`SELECT id, name FROM draft.apps WHERE apps.id = $1`, "demo")
+	// if err != nil {
+	// 	fmt.Fprintf(os.Stderr, "%v", err)
+	// 	os.Exit(1)
+	// }
+	rows, err := db.Query(`SELECT id, name FROM draft.vapps_components WHERE apps.id = $1`, "demo")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+		os.Exit(1)
 	}
-	log := logger.WithPrefix("[workshop] ", logger.LEVEL_TRACE)
-	w := &worker{Logger: log}
-
-	tasks := []task.Task{task.CreateTask("1", log, w.work), task.CreateTask("2", log, w.work), task.CreateTask("3", log, w.work)}
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, os.Kill)
-
-	task.StartAll(tasks)
-
-	for {
-		switch s := <-sigs; s {
-		case os.Interrupt:
-			task.StopAll(tasks)
-			task.WaitAll(tasks)
-			os.Exit(0)
-		case os.Kill:
-			log.Info("SIGTERM")
-			os.Exit(0)
-		}
-	}
+	// Read apps (exactly one)
+	// Read apps_components_all for app
+	// Read deployments_all for all components
+	// Create timeline by creating a snapshot for each distinct timestamp (valid_from & valid_until)
+	// --> matching valid_until & valid_from should only create two snapshots, not three
+	// apps_components: membership can only begin or end => add or remove component
+	// deployments: image_ref can change, deployments can be missing (not deployed at that point in time)
 }
 
-type worker struct {
-	logger.Logger
+type app struct {
+	name    string
+	history []snapshot
 }
 
-func (w *worker) work(cancel <-chan interface{}) error {
-	if rand.Intn(1) > 0 {
-		return fmt.Errorf("crash on startup")
-	}
-	ticker := time.NewTicker(time.Duration(1) * time.Second)
-	defer ticker.Stop()
-	for i := 0; i < rand.Intn(15)+1; i++ {
-		select {
-		case <-cancel:
-			return nil
-		case <-ticker.C:
-		}
-		w.Logger.Trace("working hard: %d", i)
-		if rand.Intn(15) > 13 {
-			return fmt.Errorf("crash during work")
-		}
-	}
-	return nil
+type snapshot struct {
+	time       time.Time
+	components []component
+}
+
+type component struct {
+	name  string
+	image string
+}
+
+func (db *store) method() {
+
 }

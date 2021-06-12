@@ -22,9 +22,6 @@ CREATE TRIGGER write_deployments_history
 BEFORE INSERT OR UPDATE OR DELETE ON deployments
 FOR EACH ROW EXECUTE FUNCTION write_deployments_history();
 
--- SELECT CONCAT(NEW.component_id, ';', NEW.platform_id';', NEW.valid_from) INTO payload;
--- payload := CONCAT('Hallo', ' ', 'Welt', '!');
-
 -- Change notifications for all tables?
 CREATE OR REPLACE FUNCTION deployments_notify() RETURNS trigger AS $$
   BEGIN
@@ -38,12 +35,7 @@ CREATE OR REPLACE FUNCTION deployments_notify() RETURNS trigger AS $$
   END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER deployments_notify_trigger ON deployments;
 CREATE TRIGGER deployments_notify_trigger
---BEFORE INSERT OR UPDATE OR DELETE ON deployments
 AFTER INSERT OR UPDATE OR DELETE ON deployments
 FOR EACH ROW
 EXECUTE FUNCTION deployments_notify();
-
-SELECT * FROM deployments;
-UPDATE deployments SET updated = current_timestamp WHERE image_ref = 'registry.redhat.io/rhel8/postgresql-12';

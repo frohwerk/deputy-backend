@@ -15,12 +15,16 @@ CREATE VIEW draft.vapps_components AS (
 
 SELECT * FROM draft.vapps_components ORDER BY component_id, valid_from;
 
-SELECT * FROM draft.apps_timeline;
-SELECT * FROM draft.apps_components_all;
 -- This is it! Heureka!
 -- Look no further, if you are wondering how to construct a timeline from subsequently dependent tables
 -- The apps_timeline table could probably be substituted by a CTE, but I am unsure about the performance...
-SELECT t.app_id, t.iteration, t.valid_from, t.valid_until, c.component_id, d.image_ref, d.valid_from, d.valid_until
+SELECT * FROM draft.apps_timeline;
+SELECT * FROM draft.apps_components_all;
+SELECT * FROM draft.deployments_all;
+SELECT * FROM draft.apps_history;
+
+CREATE VIEW draft.apps_history AS
+SELECT t.app_id, t.iteration, t.valid_from, t.valid_until, c.component_id, d.image_ref --, d.valid_from, d.valid_until
   FROM draft.apps_timeline t
  INNER JOIN draft.apps_components_all c
     ON c.app_id = t.app_id
@@ -29,8 +33,7 @@ SELECT t.app_id, t.iteration, t.valid_from, t.valid_until, c.component_id, d.ima
     ON d.component_id = c.component_id
    AND d.valid_from <= t.valid_from AND t.valid_from < COALESCE(d.valid_until, CURRENT_TIMESTAMP)
  WHERE t.app_id = 'demo'
- ORDER BY t.valid_from, c.component_id, d.valid_from
-;
+ ORDER BY t.valid_from, c.component_id, d.valid_from;
 
 -- History only for membership...
 SELECT t.*, c.component_id, c.valid_from, c.valid_until

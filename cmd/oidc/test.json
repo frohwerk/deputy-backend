@@ -1,19 +1,11 @@
 {
-  "header": {
-    "alg": "HS256",
-    "typ": "JWT",
-    "kid": "6863a65d-26fd-41ab-b292-c33c25e5627d"
-  },
-  "claims": {
-    "exp": 1622536300,
-    "iat": 1622534500,
-    "jti": "7ca67335-e345-436d-8652-af58a82503a4",
-    "iss": "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo",
-    "aud": "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo",
-    "sub": "962d8a89-d0e9-47fa-adcb-febbb36334f0",
-    "typ": "Refresh",
-    "azp": "test",
-    "session_state": "c103f41f-f46b-45e4-9e67-335353f7673f",
-    "scope": "openid email profile"
+  "id": "6863a65d-26fd-41ab-b292-c33c25e5627d",
+  "name": "Demo",
+  "env": "Test",
+  "components": {
+    "node-hello-world": {
+      "image": "172.30.1.1:5000/myproject/node-hello-world:1.0.4",
+      "updated": "2021-06-07T15:55:10.125914Z"
+    }
   }
 }

@@ -48,9 +48,9 @@ func NewFileStore(db *sql.DB) *fileStore {
 
 func (s *fileStore) Create(f *File) (*File, error) {
 	return s.selectFile(`
-		INSERT INTO files (file_id, file_digest, file_path, file_parent)
+		INSERT INTO files (id, digest, path, parent_id)
 		VALUES ($1, $2, $3, NULLIF($4, ''))
-		RETURNING file_id, file_digest, file_path, COALESCE(file_parent, '')
+		RETURNING id, digest, path, COALESCE(parent_id, '')
 	`, uuid.New().String(), f.Digest, f.Name, f.Parent)
 }
 

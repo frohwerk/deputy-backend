@@ -17,10 +17,6 @@ type Component struct {
 	Image   string
 }
 
-type ComponentLinker interface {
-	LinkPlatform(platformId, componentId string) error
-}
-
 type ComponentStore interface {
 	Create(string) (*Component, error)
 	CreateIfAbsent(string) (*Component, error)
@@ -29,7 +25,6 @@ type ComponentStore interface {
 	ListAllForApp(id string) ([]Component, error)
 	ListUnassigned() ([]Component, error)
 	ListUnassignedForApp(id string) ([]Component, error)
-	ComponentLinker
 }
 
 type componentStore struct {
@@ -44,7 +39,7 @@ func (s *componentStore) Create(name string) (*Component, error) {
 	return s.selectComponent(`
 		INSERT INTO components (name)
 		VALUES ($1)
-		RETURNING component_id, name
+		RETURNING id, name
 	`, name)
 }
 
@@ -65,13 +60,13 @@ func (s *componentStore) SetImage(name string, image string) (*Component, error)
 		UPDATE components
 		SET image = $2
 		WHERE name = $1
-		RETURNING component_id, name
+		RETURNING id, name
 	`, name, image)
 }
 
 func (s *componentStore) GetByName(name string) (*Component, error) {
 	return s.selectComponent(`
-		SELECT component_id, name
+		SELECT id, name
 		FROM components
 		WHERE name = $1
 	`, name)
@@ -79,40 +74,35 @@ func (s *componentStore) GetByName(name string) (*Component, error) {
 
 func (s *componentStore) ListAll() ([]Component, error) {
 	return s.selectComponents(`
-		SELECT component_id, name
+		SELECT id, name
 		FROM components
 	`)
 }
 
 func (s *componentStore) ListUnassigned() ([]Component, error) {
 	return s.selectComponents(`
-		SELECT component_id, name
+		SELECT id, name
 		FROM components c
-	  	WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.component_id)
+	  	WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id)
 	`)
 }
 
 func (s *componentStore) ListAllForApp(id string) ([]Component, error) {
 	return s.selectComponents(`
-		SELECT c.component_id, c.name
+		SELECT c.id, c.name
  	    FROM apps_components r
  		JOIN components c
- 		ON c.component_id = r.component_id
+ 		ON c.id = r.component_id
 		WHERE r.app_id = $1
 	`, id)
 }
 
 func (s *componentStore) ListUnassignedForApp(id string) ([]Component, error) {
 	return s.selectComponents(`
-		SELECT c.component_id, c.name
+		SELECT c.id, c.name
 		FROM components c
-		WHERE NOT EXISTS (SELECT * FROM apps_components r WHERE r.component_id = c.component_id and r.app_id = $1)
+		WHERE NOT EXISTS (SELECT * FROM apps_components r WHERE r.component_id = c.id and r.app_id = $1)
 	`, id)
-}
-
-func (s *componentStore) LinkPlatform(platformId, componentId string) error {
-	_, err := s.db.Exec(`INSERT INTO platforms_components (platform_id, component_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, platformId, componentId)
-	return err
 }
 
 func (s *componentStore) selectComponent(query string, args ...interface{}) (*Component, error) {

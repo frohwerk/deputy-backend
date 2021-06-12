@@ -8,7 +8,7 @@ import (
 	"github.com/frohwerk/deputy-backend/pkg/api"
 )
 
-// Columns: pf_id, pf_env, pf_name, pf_api_server, pf_namespace, pf_secret
+// Columns: id, env, name, api_server, namespace, secret
 
 type PlatformLister interface {
 	List() ([]api.Platform, error)
@@ -54,56 +54,56 @@ func NewPlatformStore(db *sql.DB) PlatformStore {
 
 func (s *platformStore) List() ([]api.Platform, error) {
 	return s.queryAll(`
-		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		SELECT id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 		FROM platforms
 	`)
 }
 
 func (s *platformStore) ListForEnv(envId string) ([]api.Platform, error) {
 	return s.queryAll(`
-		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		SELECT id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 		FROM platforms
-		WHERE pf_env = $1
+		WHERE env_id = $1
 	`, envId)
 }
 
 func (s *platformStore) Create(envId, name string) (*api.Platform, error) {
 	return s.queryOne(`
-		INSERT INTO platforms (pf_env, pf_name) VALUES($1, $2)
-		RETURNING pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		INSERT INTO platforms (env_id, name) VALUES($1, $2)
+		RETURNING id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 	`, envId, name)
 }
 
 func (s *platformStore) Get(id string) (*api.Platform, error) {
 	return s.queryOne(`
-		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		SELECT id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 		FROM platforms
-		WHERE pf_id = $1
+		WHERE id = $1
 	`, id)
 }
 
 func (s *platformStore) Lookup(envId, name string) (*api.Platform, error) {
 	return s.queryOne(`
-		SELECT pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		SELECT id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 		FROM platforms
-		WHERE pf_env = $1 AND pf_name = $2
+		WHERE env_id = $1 AND name = $2
 	`, envId, name)
 }
 
 func (s *platformStore) Update(p *api.Platform) (*api.Platform, error) {
 	return s.queryOne(`
 		UPDATE platforms
-		SET pf_name = $2, pf_api_server = $3, pf_namespace = $4, pf_secret = $5
-		WHERE pf_id = $1
-		RETURNING pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		SET name = $2, api_server = $3, namespace = $4, secret = $5
+		WHERE id = $1
+		RETURNING id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 	`, p.Id, p.Name, p.ServerUri, p.Namespace, p.Secret)
 }
 
 func (s *platformStore) Delete(id string) (*api.Platform, error) {
 	return s.queryOne(`
 		DELETE FROM platforms
-		WHERE pf_id = $1
-		RETURNING pf_id, pf_name, COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+		WHERE id = $1
+		RETURNING id, name, COALESCE(api_server, ''), COALESCE(namespace, ''), COALESCE(secret, '')
 	`, id)
 }
 

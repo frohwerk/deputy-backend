@@ -175,10 +175,6 @@ func handleEvent(event watch.Event) {
 		} else {
 			fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
 		}
-		if err := components.LinkPlatform(platform.Id, c.Id); err != nil {
-			fmt.Printf("ERROR Failed to link platform %s with image %s: %s\n", platform.Id, c.Id, err)
-			return
-		}
 		if trace {
 			logEvent(event, o.ObjectMeta)
 		}

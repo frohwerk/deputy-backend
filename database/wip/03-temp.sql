@@ -53,7 +53,7 @@ CREATE TABLE draft.platforms (
 );
 
 CREATE TABLE draft.apps_components (
-    app_id VARCHAR(36) NOT NULL,
+    app_id   VARCHAR(36) NOT NULL,
     component_id VARCHAR(36) NOT NULL,
     updated  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (app_id, component_id),
@@ -62,13 +62,13 @@ CREATE TABLE draft.apps_components (
 );
 
 CREATE TABLE draft.apps_components_history (
-    app_id VARCHAR(36) NOT NULL,
-    component_id VARCHAR(36) NOT NULL,
-    valid_from   TIMESTAMP NOT NULL,
-    valid_until  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (app_id, component_id, valid_from),
+    app_id        VARCHAR(36) NOT NULL,
+    component_id  VARCHAR(36) NOT NULL,
+    valid_from    TIMESTAMP NOT NULL,
+    valid_until   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (app_id) REFERENCES draft.apps (id) ON DELETE CASCADE,
-    FOREIGN KEY (component_id) REFERENCES draft.components (id) ON DELETE CASCADE
+    FOREIGN KEY (component_id) REFERENCES draft.components (id) ON DELETE CASCADE,
+    PRIMARY KEY (app_id, component_id, valid_from)
 );
 
 CREATE TABLE draft.deployments (

@@ -113,8 +113,8 @@ func (h *handler) getDeployments(app, env string) (deployments, error) {
 		SELECT c.name, COALESCE(d.image_ref, '')
 		  FROM apps_components a
 		 CROSS JOIN platforms p
-		 INNER JOIN components c ON c.component_id = a.component_id
-		  LEFT JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
+		 INNER JOIN components c ON c.id = a.component_id
+		  LEFT JOIN deployments d ON d.component_id = c.id AND d.platform_id = p.id
 		 WHERE a.app_id = $1 AND p.pf_env = $2
 	`, app, env)
 

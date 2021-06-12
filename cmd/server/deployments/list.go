@@ -34,9 +34,9 @@ func (h *handler) list(appId, envId string) ([]deployment, error) {
 		       COALESCE(d.image_ref, ''), COALESCE(d.updated, TIMESTAMP '0001-01-01 00:00:00+00' AT TIME ZONE 'UTC')
 		  FROM apps_components ac
 		 CROSS JOIN platforms p
-		 INNER JOIN components c ON c.component_id = ac.component_id
-		  LEFT JOIN deployments d ON d.component_id = c.component_id AND d.platform_id = p.pf_id
-		 WHERE ac.app_id = $1 AND p.pf_env = $2
+		 INNER JOIN components c ON c.id = ac.component_id
+		  LEFT JOIN deployments d ON d.component_id = c.id AND d.platform_id = p.id
+		 WHERE ac.app_id = $1 AND p.env_id = $2
 	`, appId, envId)
 	if err != nil {
 		return nil, err

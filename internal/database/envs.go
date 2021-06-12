@@ -56,48 +56,48 @@ func NewEnvStore(db *sql.DB) EnvStore {
 
 func (s *envStore) Create(name string) (*Env, error) {
 	return s.queryOne(`
-		INSERT INTO envs (env_name) VALUES(NULLIF($1, ''))
-		RETURNING env_id, env_name
+		INSERT INTO envs (name) VALUES(NULLIF($1, ''))
+		RETURNING id, name
 	`, name)
 }
 
 func (s *envStore) Update(env *Env) (*Env, error) {
 	return s.queryOne(`
 		UPDATE envs SET
-		env_name = NULLIF($2, '')
-		WHERE env_id = $1
-		RETURNING env_id, env_name
+		name = NULLIF($2, '')
+		WHERE id = $1
+		RETURNING id, name
 	`, env.Id, env.Name)
 }
 
 func (s *envStore) List() ([]Env, error) {
 	return s.queryAll(`
-		SELECT env_id, env_name
+		SELECT id, name
 		FROM envs
 	`)
 }
 
 func (s *envStore) Get(id string) (*Env, error) {
 	return s.queryOne(`
-		SELECT env_id, env_name
+		SELECT id, name
 		FROM envs
-		WHERE env_id = $1
+		WHERE id = $1
 	`, id)
 }
 
 func (s *envStore) FindByName(name string) (*Env, error) {
 	return s.queryOne(`
-		SELECT env_id, env_name
+		SELECT id, name
 		FROM envs
-		WHERE lower(env_name) = $1
+		WHERE lower(name) = $1
 	`, strings.ToLower(name))
 }
 
 func (s *envStore) Delete(id string) (*Env, error) {
 	return s.queryOne(`
 		DELETE FROM envs
-		WHERE env_id = $1
-		RETURNING env_id, env_name
+		WHERE id = $1
+		RETURNING id, name
 	`, id)
 }
 

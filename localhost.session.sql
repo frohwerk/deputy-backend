@@ -1,10 +1,14 @@
-SELECT gen_random_uuid();
+SELECT routine_catalog, routine_schema, routine_name, routine_type, external_language, routine_definition FROM information_schema.routines WHERE routine_schema = 'public';
+SELECT trigger_name, event_manipulation, event_object_catalog, event_object_schema, event_object_table, action_timing, action_statement FROM information_schema.triggers WHERE trigger_schema = 'public';
+
 SELECT * FROM envs;
 SELECT * FROM platforms;
-SELECT * FROM deployments;
-
 SELECT * FROM apps;
 SELECT * FROM components;
+SELECT * FROM deployments;
+
+SELECT * FROM deployments_history;
+
 SELECT * FROM apps_components;
 
 SELECT * FROM files;
