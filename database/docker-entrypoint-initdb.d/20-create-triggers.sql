@@ -1,7 +1,7 @@
 -- Debug triggers for writing to apps_timeline
 -- CREATE OR REPLACE FUNCTION deployments_print_changes() RETURNS void AS $$
 
--- Helper function for writing to apps_timeline
+-- Helper function for writing apps_timeline on deployments changes...
 CREATE OR REPLACE FUNCTION write_apps_timeline(_platform_id CHARACTER VARYING, _component_id CHARACTER VARYING, _valid_from TIMESTAMP) RETURNS void AS $$
   BEGIN
     RAISE NOTICE 'write_apps_timeline(%, %, %)', _platform_id, _component_id, _valid_from;
@@ -9,6 +9,16 @@ CREATE OR REPLACE FUNCTION write_apps_timeline(_platform_id CHARACTER VARYING, _
     SELECT app_id, env_id, _valid_from FROM apps_components CROSS JOIN platforms
      WHERE platforms.id = _platform_id AND apps_components.component_id = _component_id
         ON CONFLICT DO NOTHING;
+  END;
+$$ LANGUAGE plpgsql;
+-- Helper function for writing apps_timeline on apps_components changes...
+CREATE OR REPLACE FUNCTION write_apps_timeline(_app_id CHARACTER VARYING, _valid_from TIMESTAMP) RETURNS void AS $$
+  BEGIN
+    RAISE NOTICE 'write_apps_timeline(%, %)', _app_id, _valid_from;
+    INSERT INTO apps_timeline (app_id, env_id, valid_from)
+           SELECT _app_id, envs.id, _valid_from FROM apps CROSS JOIN envs
+           WHERE apps.id = _app_id
+           ON CONFLICT DO NOTHING;
   END;
 $$ LANGUAGE plpgsql;
 -- History for deployments table
@@ -64,7 +74,7 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
       WHEN 'INSERT' THEN
         NEW.updated := COALESCE(NEW.updated, _timestamp);
         RAISE NOTICE 'apps_components: %, %, %', NEW.app_id, NEW.component_id, NEW.updated;
-        INSERT INTO apps_timeline (app_id, env_id, valid_from) SELECT NEW.app_id, envs.id, _timestamp FROM envs ON CONFLICT DO NOTHING;
+        PERFORM write_apps_timeline(NEW.app_id, NEW.updated);
         RETURN NEW;
       WHEN 'UPDATE' THEN
         -- TODO: Do not allow updates, the relationship is stateless (except for the modification timestamp)
@@ -76,10 +86,7 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
                SELECT apps.id, components.id, OLD.updated, _timestamp
                FROM apps CROSS JOIN components WHERE apps.id = OLD.app_id AND components.id = OLD.component_id
                ON CONFLICT DO NOTHING;
-        INSERT INTO apps_timeline (app_id, env_id, valid_from)
-               SELECT apps.id, envs.id, _timestamp
-               FROM apps CROSS JOIN envs WHERE apps.id = OLD.app_id
-               ON CONFLICT DO NOTHING;
+        PERFORM write_apps_timeline(OLD.app_id, _timestamp);
         RETURN OLD;
     END CASE;
   END;
