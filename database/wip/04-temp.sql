@@ -4,11 +4,14 @@ SELECT * FROM apps WHERE char_length(id) < 20;
 SELECT * FROM components WHERE char_length(id) < 20;
 SELECT * FROM deployments WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
 SELECT * FROM apps_components WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM deployments_history WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
+SELECT * FROM apps_components_history WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
 
 DELETE FROM envs WHERE char_length(id) < 20;
-DELETE FROM platforms WHERE char_length(id) < 20;
 DELETE FROM apps WHERE char_length(id) < 20;
 DELETE FROM components WHERE char_length(id) < 20;
+
+DELETE FROM platforms WHERE char_length(id) < 20;
 DELETE FROM deployments WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
 DELETE FROM apps_components WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
 

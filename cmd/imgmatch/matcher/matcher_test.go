@@ -75,7 +75,7 @@ func (m *mock) Repository(named reference.Named) (images.Repository, error) {
 }
 
 func (*mock) Manifest(ctx context.Context, ref reference.Reference, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
-	buf, err := os.ReadFile("../../../test/fake-image/manifest.json")
+	buf, err := os.ReadFile("../../../test/data/fake-image/manifest.json")
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (*mock) Manifest(ctx context.Context, ref reference.Reference, options ...d
 }
 
 func (m *mock) Blob(ctx context.Context, dgst digest.Digest) (io.ReadSeekCloser, error) {
-	return os.Open(fmt.Sprintf("../../../test/fake-image/%s.tar.gz", dgst.Encoded()[:8]))
+	return os.Open(fmt.Sprintf("../../../test/data/fake-image/%s.tar.gz", dgst.Encoded()[:8]))
 }
 
 func TestMatch(t *testing.T) {

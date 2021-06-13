@@ -168,8 +168,21 @@ SELECT * FROM deployments_history WHERE char_length(platform_id) < 20 OR char_le
 SELECT * FROM apps_components_history WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
 
 SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
+------------------------------------------------------------------------------------------------------------------------------------------------
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('-example', 'integration') ORDER BY 1, 2, 3, 4;
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('example', '-integration') ORDER BY 1, 2, 3, 4;
+
+SELECT * FROM apps_timeline WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+SELECT * FROM apps_components_all WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a';
+SELECT * FROM deployments_all WHERE platform_id = 'c49ca75c-da18-4641-950c-f5609877828f' AND component_id IN ('4baf7782-35ea-44c0-a6a5-05724f001fa2', '151d898a-f78b-41ba-8fca-4f5f1fb60bd4');
+SELECT * FROM apps_history WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3, 4;
+
+SELECT envs.name env_name, apps.name app_name, valid_from, apps_history.component_id, components.name component_name, image_ref
+  FROM apps_history
+  JOIN apps ON apps.id = app_id
+  JOIN envs ON envs.id = env_id
+  JOIN components ON components.id = component_id
+ WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3 DESC, 4;
 ------------------------------------------------------------------------------------------------------------------------------------------------
   SELECT t.app_id, p.env_id, t.valid_from, c.component_id, d.image_ref
     FROM platforms p

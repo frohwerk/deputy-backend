@@ -15,7 +15,7 @@ import (
 type repository struct{}
 
 func (r *repository) Get(s string) (io.ReadCloser, error) {
-	f := func(s string) string { return fmt.Sprintf("../../test/rthook/%v", s) }
+	f := func(s string) string { return fmt.Sprintf("../../test/data/rthook/%v", s) }
 	switch s {
 	case "/some/path/hello-nodejs-1.0.tar.gz":
 		return os.Open(f("test.tar.gz"))

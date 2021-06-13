@@ -68,7 +68,7 @@ func TestStuff(t *testing.T) {
 }
 
 func f(name string) string {
-	return fmt.Sprintf("../../../test/%s", name)
+	return fmt.Sprintf("../../../test/data/%s", name)
 }
 
 func mockImageRegistry(t *testing.T, resources map[string]resource) http.HandlerFunc {

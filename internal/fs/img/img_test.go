@@ -66,7 +66,7 @@ func (t *mockTransport) File(name, contentType string) (*http.Response, error) {
 	wd, _ := os.Getwd()
 	fmt.Printf("os.Getwd() = %s\n", wd)
 
-	f, err := os.Open(fmt.Sprintf(`../../../../test/%s`, name))
+	f, err := os.Open(fmt.Sprintf(`../../../../test/data/%s`, name))
 	if err != nil {
 		return t.Catch(err)
 	}

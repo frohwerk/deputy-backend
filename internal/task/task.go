@@ -68,7 +68,7 @@ func (t *task) Start() {
 			t.log.Debug("task %s starting work", t.id)
 			if err := t.work(t.cancel); err != nil {
 				t.log.Error("error during task %s: %s", t.id, err)
-				t.backoff = min(t.backoff+1, uint(len(t.backoffSteps)))
+				t.backoff = min(t.backoff+1, uint(len(t.backoffSteps)-1))
 			} else {
 				t.backoff = 0
 			}

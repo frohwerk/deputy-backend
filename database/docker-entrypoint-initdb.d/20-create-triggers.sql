@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION write_apps_timeline(_platform_id CHARACTER VARYING, _
   BEGIN
     RAISE NOTICE 'write_apps_timeline(%, %, %)', _platform_id, _component_id, _valid_from;
     INSERT INTO apps_timeline (app_id, env_id, valid_from)
-    SELECT app_id, env_id, _valid_from FROM platforms CROSS JOIN apps_components
+    SELECT app_id, env_id, _valid_from FROM apps_components CROSS JOIN platforms
      WHERE platforms.id = _platform_id AND apps_components.component_id = _component_id
         ON CONFLICT DO NOTHING;
   END;
@@ -30,13 +30,18 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
           WHEN NEW.updated = OLD.updated OR NEW.updated IS NULL THEN NEW.updated = _timestamp;
         END CASE;
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
-        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
+               VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref)
+               ON CONFLICT DO NOTHING;
         PERFORM write_apps_timeline(OLD.platform_id, OLD.component_id, NEW.updated);
         RETURN NEW;
 
       WHEN 'DELETE' THEN
+        RAISE NOTICE 'delete deployments: %, %, %, %', OLD.component_id, OLD.platform_id, OLD.updated, OLD.image_ref;
+        RAISE NOTICE 'TG_TABLE_NAME: %', TG_TABLE_NAME;
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
-        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, _timestamp, OLD.image_ref);
+               SELECT components.id, platforms.id, OLD.updated, _timestamp, OLD.image_ref
+               FROM components CROSS JOIN platforms WHERE components.id = OLD.component_id AND platforms.id = OLD.platform_id
+               ON CONFLICT DO NOTHING;
         PERFORM write_apps_timeline(OLD.platform_id, OLD.component_id, _timestamp);
         RETURN OLD;
 
@@ -68,8 +73,13 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
         RETURN NEW;
       WHEN 'DELETE' THEN
         INSERT INTO apps_components_history (app_id, component_id, valid_from, valid_until)
-        VALUES(OLD.app_id, OLD.component_id, OLD.updated, _timestamp);
-        INSERT INTO apps_timeline (app_id, env_id, valid_from) SELECT OLD.app_id, envs.id, _timestamp FROM envs ON CONFLICT DO NOTHING;
+               SELECT apps.id, components.id, OLD.updated, _timestamp
+               FROM apps CROSS JOIN components WHERE apps.id = OLD.app_id AND components.id = OLD.component_id
+               ON CONFLICT DO NOTHING;
+        INSERT INTO apps_timeline (app_id, env_id, valid_from)
+               SELECT apps.id, envs.id, _timestamp
+               FROM apps CROSS JOIN envs WHERE apps.id = OLD.app_id
+               ON CONFLICT DO NOTHING;
         RETURN OLD;
     END CASE;
   END;
