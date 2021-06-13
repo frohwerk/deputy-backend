@@ -166,8 +166,8 @@ SELECT * FROM deployments WHERE char_length(platform_id) < 20 OR char_length(com
 SELECT * FROM apps_components WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
 SELECT * FROM deployments_history WHERE char_length(platform_id) < 20 OR char_length(component_id) < 20;
 SELECT * FROM apps_components_history WHERE char_length(app_id) < 20 OR char_length(component_id) < 20;
-SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
 
+SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('-example', 'integration') ORDER BY 1, 2, 3, 4;
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('example', '-integration') ORDER BY 1, 2, 3, 4;
 ------------------------------------------------------------------------------------------------------------------------------------------------

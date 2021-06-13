@@ -57,9 +57,11 @@ CREATE TABLE apps (
 DROP TABLE IF EXISTS apps_timeline;
 CREATE TABLE apps_timeline (
   app_id       VARCHAR(36) NOT NULL,
+  env_id       VARCHAR(36) NOT NULL,
   valid_from   TIMESTAMP NOT NULL,
   FOREIGN KEY (app_id) REFERENCES apps (id) ON DELETE CASCADE,
-  PRIMARY KEY (app_id, valid_from)
+  FOREIGN KEY (env_id) REFERENCES envs (id) ON DELETE CASCADE,
+  PRIMARY KEY (app_id, env_id, valid_from)
 );
 -- TODO:
 -- Write apps_timeline entry on updates for apps_components or deployments

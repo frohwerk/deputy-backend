@@ -1,19 +1,26 @@
+-- Debug triggers for writing to apps_timeline
+-- CREATE OR REPLACE FUNCTION deployments_print_changes() RETURNS void AS $$
+
+-- Helper function for writing to apps_timeline
+CREATE OR REPLACE FUNCTION write_apps_timeline(_platform_id CHARACTER VARYING, _component_id CHARACTER VARYING, _valid_from TIMESTAMP) RETURNS void AS $$
+  BEGIN
+    RAISE NOTICE 'write_apps_timeline(%, %, %)', _platform_id, _component_id, _valid_from;
+    INSERT INTO apps_timeline (app_id, env_id, valid_from)
+    SELECT app_id, env_id, _valid_from FROM platforms CROSS JOIN apps_components
+     WHERE platforms.id = _platform_id AND apps_components.component_id = _component_id
+        ON CONFLICT DO NOTHING;
+  END;
+$$ LANGUAGE plpgsql;
 -- History for deployments table
 CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
   DECLARE
-    app apps.id%TYPE;
-    env envs.id%TYPE;
     _timestamp  timestamp = CURRENT_TIMESTAMP;
   BEGIN
     CASE TG_OP
 
       WHEN 'INSERT' THEN
         NEW.updated := COALESCE(NEW.updated, _timestamp);
-        FOR app IN
-          SELECT DISTINCT app_id FROM apps_components WHERE component_id = NEW.component_id
-        LOOP
-          INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, NEW.updated) ON CONFLICT DO NOTHING;
-        END LOOP;
+        PERFORM write_apps_timeline(NEW.platform_id, NEW.component_id, NEW.updated);
         RETURN NEW;
 
       WHEN 'UPDATE' THEN
@@ -24,22 +31,13 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
         END CASE;
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
         VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref);
-        FOR app IN
-          SELECT DISTINCT app_id FROM apps_components WHERE component_id = OLD.component_id
-        LOOP
-          RAISE NOTICE 'insert into apps_timeline: %, %', app, NEW.updated;
-          INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, NEW.updated) ON CONFLICT DO NOTHING;
-        END LOOP;
+        PERFORM write_apps_timeline(OLD.platform_id, OLD.component_id, NEW.updated);
         RETURN NEW;
 
       WHEN 'DELETE' THEN
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
-        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, CURRENT_TIMESTAMP, OLD.image_ref);
-        FOR app IN
-          SELECT DISTINCT app_id FROM apps_components WHERE component_id = OLD.component_id
-        LOOP
-          INSERT INTO apps_timeline (app_id, valid_from) VALUES (app, OLD.updated) ON CONFLICT DO NOTHING;
-        END LOOP;
+        VALUES(OLD.component_id, OLD.platform_id, OLD.updated, _timestamp, OLD.image_ref);
+        PERFORM write_apps_timeline(OLD.platform_id, OLD.component_id, _timestamp);
         RETURN OLD;
 
     END CASE;
@@ -61,7 +59,7 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
       WHEN 'INSERT' THEN
         NEW.updated := COALESCE(NEW.updated, _timestamp);
         RAISE NOTICE 'apps_components: %, %, %', NEW.app_id, NEW.component_id, NEW.updated;
-        INSERT INTO apps_timeline (app_id, valid_from) VALUES (NEW.app_id, _timestamp) ON CONFLICT DO NOTHING;
+        INSERT INTO apps_timeline (app_id, env_id, valid_from) SELECT NEW.app_id, envs.id, _timestamp FROM envs ON CONFLICT DO NOTHING;
         RETURN NEW;
       WHEN 'UPDATE' THEN
         -- TODO: Do not allow updates, the relationship is stateless (except for the modification timestamp)
@@ -71,7 +69,7 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
       WHEN 'DELETE' THEN
         INSERT INTO apps_components_history (app_id, component_id, valid_from, valid_until)
         VALUES(OLD.app_id, OLD.component_id, OLD.updated, _timestamp);
-        INSERT INTO apps_timeline (app_id, valid_from) VALUES (OLD.app_id, _timestamp) ON CONFLICT DO NOTHING;
+        INSERT INTO apps_timeline (app_id, env_id, valid_from) SELECT OLD.app_id, envs.id, _timestamp FROM envs ON CONFLICT DO NOTHING;
         RETURN OLD;
     END CASE;
   END;

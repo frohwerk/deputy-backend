@@ -11,8 +11,9 @@ CREATE VIEW deployments_all AS
 DROP VIEW IF EXISTS apps_history;
 CREATE OR REPLACE VIEW apps_history AS
   SELECT t.app_id, p.env_id, t.valid_from, c.component_id, d.image_ref
-    FROM platforms p
-   CROSS JOIN apps_timeline t
+    FROM apps_timeline t
+   INNER JOIN platforms p
+      ON p.env_id = t.env_id
    INNER JOIN apps_components_all c
       ON c.app_id = t.app_id
      AND c.valid_from <= t.valid_from AND t.valid_from < COALESCE(c.valid_until, CURRENT_TIMESTAMP)
