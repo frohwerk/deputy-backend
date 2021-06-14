@@ -54,13 +54,6 @@ func TestStuff(t *testing.T) {
 }
 
 func CleanDatabase() error {
-	row := db.QueryRow(`SELECT COUNT(*) FROM envs`)
-	var i int
-	err := row.Scan(&i)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Found %v envs\n", i)
 	statements := []string{
 		`DELETE FROM envs`,
 		`DELETE FROM platforms`,

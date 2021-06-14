@@ -96,6 +96,20 @@ CREATE TRIGGER write_apps_components_history
 BEFORE INSERT OR UPDATE OR DELETE ON apps_components
 FOR EACH ROW EXECUTE FUNCTION write_apps_components_history();
 
+-- Add apps_timeline entry for new apps
+CREATE OR REPLACE FUNCTION apps_insert_timeline() RETURNS trigger AS $$
+  BEGIN
+    IF TG_OP = 'INSERT' THEN
+      PERFORM write_apps_timeline(NEW.id, CURRENT_TIMESTAMP::TIMESTAMP);
+    END IF;
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER apps_insert_timeline
+BEFORE INSERT ON apps
+FOR EACH ROW EXECUTE FUNCTION apps_insert_timeline();
+
 -- Change notifications for all tables?
 CREATE OR REPLACE FUNCTION deployments_notify() RETURNS trigger AS $$
   BEGIN

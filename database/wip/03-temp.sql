@@ -172,17 +172,165 @@ SELECT * FROM apps_timeline WHERE char_length(app_id) < 20;
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('-example', 'integration') ORDER BY 1, 2, 3, 4;
 SELECT * FROM apps_history WHERE app_id = 'tester' AND env_id IN ('example', '-integration') ORDER BY 1, 2, 3, 4;
 
-SELECT * FROM apps_timeline WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
-SELECT * FROM apps_components_all WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a';
+SELECT * FROM apps_timeline WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+SELECT * FROM apps_components_all WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53';
 SELECT * FROM deployments_all WHERE platform_id = 'c49ca75c-da18-4641-950c-f5609877828f' AND component_id IN ('4baf7782-35ea-44c0-a6a5-05724f001fa2', '151d898a-f78b-41ba-8fca-4f5f1fb60bd4');
-SELECT * FROM apps_history WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3, 4;
+SELECT * FROM apps_history WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3, 4;
 
-SELECT envs.name env_name, apps.name app_name, valid_from, apps_history.component_id, components.name component_name, image_ref
+SELECT * FROM apps_timeline WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+SELECT * FROM apps_components WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53';
+SELECT * FROM apps_components_history WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53';
+SELECT * FROM deployments WHERE platform_id = 'c49ca75c-da18-4641-950c-f5609877828f';
+SELECT * FROM deployments_history WHERE platform_id = 'c49ca75c-da18-4641-950c-f5609877828f';
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM pg_timezone_names;
+SELECT ROUND(EXTRACT(EPOCH FROM NULL::TIMESTAMP AT TIME ZONE 'Europe/Berlin')) now;
+SELECT '2021-06-14T13:28:32.681101Z'::TIMESTAMP AT TIME ZONE 'UTC' TS, EXTRACT(EPOCH FROM '2021-06-14T13:28:32.681101Z' AT TIME ZONE 'UTC') EPOCH;
+SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC', to_char(CURRENT_TIMESTAMP AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.USZ') now;
+SELECT to_timestamp(1623667768.448556), to_timestamp(1623667768.448556) AT TIME ZONE 'UTC';
+SELECT to_timestamp(1623667768) AT TIME ZONE 'Europe/Berlin';
+SELECT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP AT TIME ZONE 'UTC') now;
+SELECT to_char(NULL::TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS.MS') now;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT app_id, env_id, valid_from FROM apps_timeline
+ WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00'
+ ORDER BY valid_from DESC;
+WITH slice AS (
+SELECT app_id, env_id, valid_from FROM apps_timeline
+ WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' AND valid_from < '2021-06-14 10:33:44.448556'
+ ORDER BY valid_from DESC FETCH FIRST ROW ONLY
+) SELECT * FROM slice;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT app_id, env_id, valid_from
+  FROM apps_timeline
+ WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53'
+   AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00'
+   AND valid_from < '2021-06-14 10:33:44.448556'
+ ORDER BY valid_from DESC FETCH FIRST ROW ONLY;
+------------------------------------------------------------------------------------------------------------------------------------------------
+WITH slice AS (
+  SELECT app_id, env_id, valid_from, '2021-06-14 10:33:44.448556'::TIMESTAMP FROM apps_timeline
+   WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' AND valid_from < '2021-06-14 10:33:44.448556'
+   ORDER BY valid_from DESC FETCH FIRST ROW ONLY
+) SELECT * FROM slice
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM apps;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT MAX(apps_timeline.valid_from) AS valid_from FROM apps_timeline
+ WHERE apps_timeline.app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND apps_timeline.env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' AND apps_timeline.valid_from < '2021-06-14 10:33:44.448556'::TIMESTAMP;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM apps_timeline;
+------------------------------------------------------------------------------------------------------------------------------------------------
+WITH
+params AS (
+  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id, 'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id, to_timestamp(1623689711.0) AT TIME ZONE 'UTC' _timestamp
+),
+slice AS (
+  SELECT
+    (SELECT MAX(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from < _timestamp) AS valid_from,
+    (SELECT MIN(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from >= _timestamp) AS valid_until
+)
+SELECT apps.id AS app_id, apps.name AS app_name,
+        slice.valid_from, slice.valid_until,
+        COALESCE(components.id, '') AS component_id, COALESCE(components.name, '') AS component_name,
+        COALESCE(h.image_ref, '') AS image_ref, COALESCE(to_char(h.last_deployment, 'YYYY-MM-DD HH24:MI:SS.USZ'), '') AS last_deployment
+FROM params CROSS JOIN slice
+INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
+INNER JOIN apps ON apps.id = h.app_id
+LEFT JOIN components ON components.id = h.component_id
+ORDER BY 3 DESC, 5 ASC;
+------------------------------------------------------------------------------------------------------------------------------------------------
+WITH
+params AS (
+  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id, 'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id, '2021-06-15 10:35:44.448556'::TIMESTAMP _timestamp
+--  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id, 'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id, '2021-06-14 10:33:44.448556'::TIMESTAMP _timestamp
+),
+slice AS (
+  SELECT
+    (SELECT MAX(apps_timeline.valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from < _timestamp) AS valid_from,
+    (SELECT MIN(apps_timeline.valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from >= _timestamp) AS valid_until
+--) SELECT _app_id app_id, _env_id env_id, slice.* FROM params, slice;
+)
+SELECT apps.id AS app_id, apps.name AS app_name,
+       slice.valid_from, slice.valid_until,
+       COALESCE(components.id, '') AS component_id, COALESCE(components.name, '') AS component_name,
+       COALESCE(apps_history.image_ref, '') AS image, COALESCE(to_char(deployed, 'YYYY-MM-DD HH24:MI:SS.USZ'), '') AS last_deployment
+  FROM params CROSS JOIN slice
+  JOIN apps ON apps.id = _app_id
+  JOIN apps_history ON apps_history.app_id = apps.id AND apps_history.env_id = _env_id
+  JOIN components ON components.id = apps_history.component_id
+ WHERE apps_history.valid_from = slice.valid_from
+ ORDER BY 5;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM apps_history WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY valid_from DESC, component_id ASC;
+WITH
+params AS (
+--  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id, 'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id, '2022-06-15 10:33:44.448556'::TIMESTAMP _timestamp
+  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id, 'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id, '2021-06-14 13:28:32.681101Z'::TIMESTAMP _timestamp
+),
+slice AS (
+  SELECT
+    (SELECT MAX(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from < _timestamp) AS valid_from,
+    (SELECT MIN(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from >= _timestamp) AS valid_until
+) SELECT * FROM slice;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT EXTRACT(EPOCH FROM '2021-06-14 13:28:32.681101Z'::TIMESTAMP WITH TIME ZONE);
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Lösung: Lesen eines bestimmten Standes aus der apps_history
+WITH
+params AS (
+  SELECT '0f99b1fd-b546-4eb3-9977-a05724257d53' _app_id,
+         'e7ccea48-c007-4ff5-b2fb-74516e77da00' _env_id,
+         to_timestamp(1623677312.681101) AT TIME ZONE 'UTC' _timestamp
+),
+slice AS (
+  SELECT
+    (SELECT MAX(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from < _timestamp) AS valid_from,
+    (SELECT MIN(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from >= _timestamp) AS valid_until
+)
+SELECT apps.id AS app_id, apps.name AS app_name,
+       slice.valid_from, slice.valid_until,
+       COALESCE(components.id, '') AS component_id, COALESCE(components.name, '') AS component_name,
+       COALESCE(h.image_ref, '') AS image_ref, COALESCE(to_char(h.last_deployment, 'YYYY-MM-DD HH24:MI:SS.USZ'), '') AS last_deployment
+  FROM params CROSS JOIN slice
+ INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
+ INNER JOIN apps ON apps.id = h.app_id
+  LEFT JOIN components ON components.id = h.component_id
+ ORDER BY 3 DESC, 5 ASC;
+------------------------------------------------------------------------------------------------------------------------------------------------
+--)
+SELECT apps.id AS app_id, apps.name AS app_name, slice.valid_from, slice.valid_until,
+       COALESCE(components.id, '') AS component_id, COALESCE(components.name, '') AS component_name,
+       COALESCE(apps_history.image_ref, '') AS image, COALESCE(apps_history.deployed, '0001-01-01 00:00:00'::TIMESTAMP) AS deployed
+  FROM params, slice, apps_history
+  JOIN apps ON apps.id = slice.app_id
+  JOIN envs ON envs.id = slice.env_id
+  LEFT JOIN components ON components.id = component_id
+ WHERE apps_history.app_id = _app_id AND apps_history.env_id = _env_id AND apps_history.valid_from = slice.valid_from
+ ORDER BY 5;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT apps.id, apps.name, valid_from,
+       ROW_NUMBER() OVER (ORDER BY 3 DESC, 5) - 1 AS age,
+       COALESCE(components.id, '') cid, COALESCE(components.name, '') cname,
+       COALESCE(image_ref, '') cimage, COALESCE(deployed, '0001-01-01 00:00:00'::TIMESTAMP) cdeployed
   FROM apps_history
   JOIN apps ON apps.id = app_id
   JOIN envs ON envs.id = env_id
-  JOIN components ON components.id = component_id
- WHERE app_id = 'c0b5239a-8fc1-405d-95c8-e4ac93c4c16a' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3 DESC, 4;
+  LEFT JOIN components ON components.id = component_id
+ WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00'
+ ORDER BY 3 DESC, 5;
+------------------------------------------------------------------------------------------------------------------------------------------------
+INSERT INTO apps_timeline
+SELECT app_id, env_id, '2021-06-14 07:39:39.402386'::TIMESTAMP FROM apps_timeline
+ON CONFLICT DO NOTHING;
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM apps_timeline WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00';
+SELECT envs.name env_name, apps.name app_name, valid_from, apps_history.component_id, components.name component_name, image_ref, deployed
+  FROM apps_history
+  JOIN apps ON apps.id = app_id
+  JOIN envs ON envs.id = env_id
+  LEFT JOIN components ON components.id = component_id
+ WHERE app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' ORDER BY 1, 2, 3 DESC, 4;
 ------------------------------------------------------------------------------------------------------------------------------------------------
   SELECT t.app_id, p.env_id, t.valid_from, c.component_id, d.image_ref
     FROM platforms p
