@@ -16,7 +16,7 @@ import (
 func (h *handler) Get(resp http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprint(req.Context().Value(params.App))
 	envId, _ := request.StringParam(req.URL.Query(), "env")
-	before, _ := request.FloatParam(req.URL.Query(), "before")
+	before, _ := request.TimeParam(req.URL.Query(), "before")
 
 	fmt.Printf("AppsHandler.Get(%v, %v, %v)\n", id, envId, before)
 
@@ -25,7 +25,7 @@ func (h *handler) Get(resp http.ResponseWriter, req *http.Request) {
 		err    error
 	)
 
-	if before == 0 {
+	if before == nil {
 		result, err = h.currentView(id, envId, resp, req)
 	} else {
 		result, err = h.history(id, envId, before, resp, req)
@@ -58,7 +58,7 @@ type app struct {
 	History    []state     `json:"history,omitempty"`
 }
 
-func (h *handler) history(id, envId string, before float64, resp http.ResponseWriter, req *http.Request) (*app, error) {
+func (h *handler) history(id, envId string, before *time.Time, resp http.ResponseWriter, req *http.Request) (*app, error) {
 	// TODO: Read history using apps_history view
 	//  SELECT envs.name AS env_name, apps.name AS app_name, valid_from, components.name AS component_name, image_ref
 	//
@@ -76,7 +76,7 @@ func (h *handler) history(id, envId string, before float64, resp http.ResponseWr
 	//	     ORDER BY 1 DESC, 2
 	//		 `, id, envId)
 	ts := time.Time{}
-	row := h.DB.QueryRow(`SELECT to_timestamp($1) AT TIME ZONE 'UTC'`, before)
+	row := h.DB.QueryRow(`SELECT $1 AT TIME ZONE 'UTC'`, before)
 	if err := row.Scan(&ts); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to convert epoch to timestamp: %v\n", err)
 	} else {
@@ -86,7 +86,7 @@ func (h *handler) history(id, envId string, before float64, resp http.ResponseWr
 	rows, err := h.DB.Query(`
         WITH
         params AS (
-          SELECT $1 _app_id, $2 _env_id, to_timestamp($3) AT TIME ZONE 'UTC' _timestamp
+          SELECT $1 _app_id, $2 _env_id, $3 AT TIME ZONE 'UTC' _timestamp
         ),
         slice AS (
           SELECT
