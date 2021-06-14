@@ -54,8 +54,9 @@ type state struct {
 type app struct {
 	Id         string      `json:"id"`
 	Name       string      `json:"name,omitempty"`
-	Components []component `json:"components,omitempty"`
-	History    []state     `json:"history,omitempty"`
+	ValidFrom  *time.Time  `json:"validFrom,omitempty"`
+	ValidUntil *time.Time  `json:"validUntil,omitempty"`
+	Components []component `json:"components"`
 }
 
 func (h *handler) history(id, envId string, before *time.Time, resp http.ResponseWriter, req *http.Request) (*app, error) {
@@ -93,10 +94,10 @@ func (h *handler) history(id, envId string, before *time.Time, resp http.Respons
             (SELECT MAX(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from < _timestamp) AS valid_from,
             (SELECT MIN(valid_from) FROM params, apps_timeline WHERE app_id = _app_id AND env_id = _env_id AND valid_from >= _timestamp) AS valid_until
         )
-        SELECT apps.id AS app_id, apps.name AS app_name,
+        SELECT apps.id, apps.name,
                slice.valid_from, slice.valid_until,
-               COALESCE(components.id, '') AS component_id, COALESCE(components.name, '') AS component_name,
-               COALESCE(h.image_ref, '') AS image_ref, COALESCE(to_char(h.last_deployment, 'YYYY-MM-DD HH24:MI:SS.USZ'), '') AS last_deployment
+               components.id, components.name,
+               h.image_ref, to_char(h.last_deployment, 'YYYY-MM-DD HH24:MI:SS.USZ')
         FROM params CROSS JOIN slice
        INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
        INNER JOIN apps ON apps.id = h.app_id
@@ -109,31 +110,40 @@ func (h *handler) history(id, envId string, before *time.Time, resp http.Respons
 		return nil, err
 	}
 
-	var until sql.NullTime
-	app := app{History: []state{}}
+	app := app{Id: id, Components: []component{}}
 	//snapshots := []state{}
-	prev, curr := time.Time{}, time.Time{}
-	for i := -1; rows.Next(); prev = curr {
-		fmt.Printf("result row #%v\n", i+2)
-		c := component{}
-
-		err := rows.Scan(&app.Id, &app.Name, &curr, &until, &c.Id, &c.Name, &c.Image, &c.Deployed)
+	for i := 0; rows.Next(); i++ {
+		var from, until sql.NullTime
+		var id, name, image, deployed sql.NullString
+		fmt.Printf("result row #%v\n", i+1)
+		err := rows.Scan(&app.Id, &app.Name, &from, &until, &id, &name, &image, &deployed)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error during history row scan: %v\n", err)
 			return nil, err
 		}
 
-		if !curr.Equal(prev) {
-			s := state{ValidFrom: &curr, Components: []component{}}
-			if until.Valid {
-				s.ValidUntil = &until.Time
+		if i == 0 {
+			if from.Valid {
+				app.ValidFrom = &from.Time
 			}
-			app.History = append(app.History, s)
-			i++
+			if until.Valid {
+				app.ValidUntil = &until.Time
+			}
 		}
 
-		if c.Id != "" {
-			app.History[i].Components = append(app.History[i].Components, c)
+		c := component{}
+		if id.Valid {
+			c.Id = id.String
+			if name.Valid {
+				c.Name = name.String
+			}
+			if image.Valid {
+				c.Image = image.String
+			}
+			if deployed.Valid {
+				c.Deployed = deployed.String
+			}
+			app.Components = append(app.Components, c)
 		}
 	}
 
