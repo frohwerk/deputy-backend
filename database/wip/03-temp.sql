@@ -219,7 +219,14 @@ SELECT * FROM apps;
 SELECT MAX(apps_timeline.valid_from) AS valid_from FROM apps_timeline
  WHERE apps_timeline.app_id = '0f99b1fd-b546-4eb3-9977-a05724257d53' AND apps_timeline.env_id = 'e7ccea48-c007-4ff5-b2fb-74516e77da00' AND apps_timeline.valid_from < '2021-06-14 10:33:44.448556'::TIMESTAMP;
 ------------------------------------------------------------------------------------------------------------------------------------------------
-SELECT * FROM apps_timeline;
+SELECT EXTRACT(EPOCH FROM '2021-06-15T08:13:38.671053Z'::TIMESTAMP WITH TIME ZONE);
+------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM apps_history;
+DELETE FROM apps WHERE id = 'test';
+INSERT INTO apps (id, name) VALUES('test', 'Test');
+INSERT INTO apps_timeline (app_id, env_id, valid_from)
+  SELECT 'd9420583-212c-4613-a451-a4c7b759e184', envs.id, '2021-06-15 08:11:38.671053' FROM apps CROSS JOIN envs
+  WHERE apps.id = 'd9420583-212c-4613-a451-a4c7b759e184';
 ------------------------------------------------------------------------------------------------------------------------------------------------
 WITH
 params AS (

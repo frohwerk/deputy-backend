@@ -98,16 +98,20 @@ FOR EACH ROW EXECUTE FUNCTION write_apps_components_history();
 
 -- Add apps_timeline entry for new apps
 CREATE OR REPLACE FUNCTION apps_insert_timeline() RETURNS trigger AS $$
+  DECLARE
+    _timestamp TIMESTAMP = CURRENT_TIMESTAMP;
   BEGIN
+    RAISE NOTICE 'apps_insert_timeline(): TG_OP = %', TG_OP;
     IF TG_OP = 'INSERT' THEN
-      PERFORM write_apps_timeline(NEW.id, CURRENT_TIMESTAMP::TIMESTAMP);
+      RAISE NOTICE 'apps_insert_timeline() => %, %', NEW.id, _timestamp;
+      PERFORM write_apps_timeline(NEW.id, _timestamp);
     END IF;
     RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER apps_insert_timeline
-BEFORE INSERT ON apps
+AFTER INSERT ON apps
 FOR EACH ROW EXECUTE FUNCTION apps_insert_timeline();
 
 -- Change notifications for all tables?

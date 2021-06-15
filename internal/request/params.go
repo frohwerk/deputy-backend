@@ -43,7 +43,7 @@ func TimeParam(queryParams map[string][]string, name string) (*time.Time, bool) 
 			fmt.Fprintf(os.Stderr, "error parsing TimeParam: %v\n", v[0])
 			return nil, false
 		}
-		time := time.Unix(sec, msec*1000)
+		time := time.Unix(sec, msec*1000).In(time.UTC)
 		return &time, true
 	}
 	return nil, false

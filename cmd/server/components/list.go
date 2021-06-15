@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
+	"github.com/frohwerk/deputy-backend/internal/epoch"
 	"github.com/frohwerk/deputy-backend/internal/request"
-	"github.com/frohwerk/deputy-backend/pkg/api"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
 )
 
@@ -18,7 +18,7 @@ func (h *componentHandler) List(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *componentHandler) list(params map[string][]string) ([]api.Component, error) {
+func (h *componentHandler) list(params map[string][]string) ([]component, error) {
 	appId, unassigned := request.StringParam(params, "unassigned")
 	envId, _ := request.StringParam(params, "env")
 
@@ -27,17 +27,20 @@ func (h *componentHandler) list(params map[string][]string) ([]api.Component, er
 		return nil, err
 	}
 
-	result := make([]api.Component, len(components))
+	result := make([]component, len(components))
 	for i, c := range components {
-		result[i] = api.Component{Id: c.Id, Name: c.Name}
+		result[i] = component{Id: c.Id, Name: c.Name}
 		deployments, err := h.getDeployments(c.Id, envId)
-		if err != nil {
+
+		switch {
+		case err != nil:
 			return nil, err
+		case len(deployments) == 0:
+			continue
 		}
-		result[i].Deployments = make([]api.Deployment, len(deployments))
-		for j, d := range deployments {
-			result[i].Deployments[j] = api.Deployment{ImageRef: d.ImageRef, Updated: d.Updated}
-		}
+
+		result[i].Image = deployments[0].ImageRef
+		result[i].Deployed = epoch.FromTime(&deployments[0].Updated)
 	}
 
 	return result, nil

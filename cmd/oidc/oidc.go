@@ -58,7 +58,7 @@ func main() {
 	// }
 	config := oauth2.Config{
 		ClientID:     "test",
-		ClientSecret: "b2a05ee9-ef9b-4a0c-a943-b301c9c40f5e",
+		ClientSecret: "1d319ad6-cd77-48a6-af69-4d18ab28394a",
 		Endpoint:     provider.Endpoint(),
 		RedirectURL:  "https://127.0.0.1.nip.io/auth/keycloak/callback",
 		Scopes:       []string{oidc.ScopeOpenID},
