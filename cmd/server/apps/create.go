@@ -37,7 +37,7 @@ func Create(as database.AppStore) http.HandlerFunc {
 		// TODO: Fix format errors in url
 		resp.Header().Add("Location", fmt.Sprintf("%s://%s:%s%s/%s", req.URL.Scheme, req.URL.Host, req.URL.Port(), req.URL.Path, url.PathEscape(dbapp.Id)))
 		resp.WriteHeader(http.StatusCreated)
-		writeJsonResponse(resp, api.App{Name: dbapp.Name})
+		writeJsonResponse(resp, api.App{Id: dbapp.Id, Name: dbapp.Name})
 	}
 }
 
