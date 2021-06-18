@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"time"
 
 	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
+	"github.com/frohwerk/deputy-backend/internal/request"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -27,11 +29,17 @@ type platform struct {
 
 func (h *handler) doCopy(rw http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-	app := params.Get("app")
-	from := params.Get("from")
-	to := params.Get("to")
+	app, _ := request.StringParam(params, "app")
+	at, _ := request.TimeParam(params, "at")
+	from, _ := request.StringParam(params, "from")
+	to, _ := request.StringParam(params, "to")
 
-	if err := h.copy(app, from, to); err != nil {
+	if at == nil {
+		t := time.Now()
+		at = &t
+	}
+
+	if err := h.copy(app, at, from, to); err != nil {
 		httputil.WriteErrorResponse(rw, err)
 	} else {
 		rw.WriteHeader(http.StatusAccepted)
@@ -39,7 +47,7 @@ func (h *handler) doCopy(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *handler) copy(app, sourceEnv, targetEnv string) error {
+func (h *handler) copy(app string, at *time.Time, sourceEnv, targetEnv string) error {
 	switch {
 	case app == "":
 		return httputil.BadRequest("Missing or invalid value for parameter 'app'")
@@ -49,12 +57,14 @@ func (h *handler) copy(app, sourceEnv, targetEnv string) error {
 		return httputil.BadRequest("Missing or invalid value for parameter 'to'")
 	}
 
-	source, err := h.getDeployments(app, sourceEnv)
+	now := time.Now()
+
+	source, err := h.getDeployments(app, sourceEnv, at)
 	if err != nil {
 		return err
 	}
 
-	target, err := h.getDeployments(app, targetEnv)
+	target, err := h.getDeployments(app, targetEnv, &now)
 	if err != nil {
 		return err
 	}
@@ -72,6 +82,9 @@ func (h *handler) copy(app, sourceEnv, targetEnv string) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("TODO: wait for a deployment to complete before starting the next component update")
+		fmt.Println("TODO: for that purpose you can monitor the pods resources associated with the deployment")
+		fmt.Println("TODO: once the number of pods running with the new version is equal to the expected number we can continue")
 		fmt.Println(targetEnv)
 		fmt.Println(op.Component)
 		fmt.Println(op.Platform)
@@ -88,10 +101,10 @@ func (h *handler) copy(app, sourceEnv, targetEnv string) error {
 
 func (h *handler) getPlatform(env, name string) (*platform, error) {
 	row := h.db.QueryRow(`
-		SELECT COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
-		  FROM platforms
-		 WHERE pf_env = $1 AND pf_name = $2
-	`, env, name)
+        SELECT COALESCE(pf_api_server, ''), COALESCE(pf_namespace, ''), COALESCE(pf_secret, '')
+          FROM platforms
+         WHERE pf_env = $1 AND pf_name = $2
+    `, env, name)
 	p := platform{}
 	if err := row.Scan(&p.ServerUri, &p.Namespace, &p.Secret); err != nil {
 		return nil, err
@@ -108,15 +121,19 @@ func (h *handler) getPlatform(env, name string) (*platform, error) {
 	return &p, nil
 }
 
-func (h *handler) getDeployments(app, env string) (deployments, error) {
+func (h *handler) getDeployments(app, env string, at *time.Time) (deployments, error) {
 	rows, err := h.db.Query(`
-		SELECT c.name, COALESCE(d.image_ref, '')
-		  FROM apps_components a
-		 CROSS JOIN platforms p
-		 INNER JOIN components c ON c.id = a.component_id
-		  LEFT JOIN deployments d ON d.component_id = c.id AND d.platform_id = p.id
-		 WHERE a.app_id = $1 AND p.pf_env = $2
-	`, app, env)
+      WITH slice AS (
+        SELECT app_id _app_id, env_id _env_id, MAX(valid_from) _timestamp FROM apps_history
+         WHERE app_id = $1 AND env_id = $2 AND valid_from <= $3::TIMESTAMP
+         GROUP BY app_id, env_id
+      )
+      SELECT apps_history.component_id, components.name, platforms.name, apps_history.image_ref FROM slice
+        JOIN apps_history ON apps_history.app_id = _app_id AND apps_history.env_id = _env_id AND apps_history.valid_from = _timestamp
+        JOIN components ON components.id = apps_history.component_id
+        JOIN platforms ON platforms.id = apps_history.platform_id
+       WHERE image_ref IS NOT NULL
+    `, app, env, at)
 
 	if err != nil {
 		return nil, err
@@ -124,10 +141,11 @@ func (h *handler) getDeployments(app, env string) (deployments, error) {
 
 	result := make([]deployment, 0)
 	for i := 0; rows.Next(); i++ {
-		result = append(result, deployment{})
-		if err := rows.Scan(&result[i].Name, &result[i].ImageRef); err != nil {
+		d := deployment{}
+		if err := rows.Scan(&d.Id, &d.ComponentName, &d.PlatformName, &d.ImageRef); err != nil {
 			return nil, err
 		}
+		result = append(result, d)
 	}
 
 	return result, nil
@@ -147,12 +165,12 @@ func createPatches(source, target deployments) []patch {
 	for i := 0; i < source.Len(); i++ {
 		s, t := source[i], target[i]
 		if s.ImageRef != t.ImageRef {
-			if s.Name != t.Name {
+			if s.ComponentName != t.ComponentName {
 				fmt.Println("source and target name do not match!")
 				continue
 			}
 			fmt.Println("TODO: replace hard coded platform name")
-			patches = append(patches, patch{Component: s.Name, Platform: "minishift", Patch: k8s.CreateImagePatch(s.Name, s.ImageRef)})
+			patches = append(patches, patch{Component: s.ComponentName, Platform: "minishift", Patch: k8s.CreateImagePatch(s.ComponentName, s.ImageRef)})
 		}
 	}
 

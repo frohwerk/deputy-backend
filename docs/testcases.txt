@@ -1,0 +1,56 @@
+scenario #1
+===========
+envs:
+- example, ...
+
+platforms:
+- minishift, example, ...
+
+apps:
+- tester, ...
+
+deployments:
+- component-a, minishift, ...
+- component-b, minishift, ...
+
+scenario #2
+===========
+scenario #1 =>
+envs:
+- integration, ...
+
+platforms:
+- minishift-si, integration, ...
+
+deployments:
+- component-a, minishift-si, ...
+
+test cases
+==========
+
+1. link application 'tester' with component 'component-a'
+expected results
+- insert apps_components: tester, component-a, timestamp-1
+- insert apps_timeline: tester, example, timestamp-1
+
+=> Successful
+
+2. TF#1 => link application 'tester' with component 'component-b'
+expected results
+- insert apps_components: tester, component-b, timestamp-2
+- insert apps_timeline: tester, example, timestamp-2
+
+=> Successful
+
+3. TF#2 => remove component 'component-b' from application 'tester'
+expected results
+- delete apps_components: tester, component-b, timestamp-2
+- insert apps_components_history: tester, component-b, timestamp-2, timestamp-3
+- insert apps_timeline: tester, example, timestamp-3
+
+=> Successful
+
+4. TF#3 => repeat only TF#2
+expected results
+- insert apps_components: tester, component-b, timestamp-4
+- insert apps_timeline: tester, example, timestamp-4

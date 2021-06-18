@@ -1,8 +1,10 @@
 package tasks
 
 type deployment struct {
-	Name     string
-	ImageRef string
+	Id            string
+	ComponentName string
+	PlatformName  string
+	ImageRef      string
 }
 
 type deployments []deployment
@@ -12,7 +14,7 @@ func (d deployments) Len() int {
 }
 
 func (d deployments) Less(i, j int) bool {
-	return d[i].Name < d[j].Name
+	return d[i].ComponentName < d[j].ComponentName
 }
 
 func (d deployments) Swap(i, j int) {

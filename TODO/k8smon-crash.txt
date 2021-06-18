@@ -1,0 +1,28 @@
+[minishift] TODO: add option to get secret and certificate file from a file reference (useful fur cluster deployment)
+[minishift-si] error watching namespace my-namespace on api-server https://192.168.178.31:8443: unknown (get deployments.apps)
+[minishift] error watching namespace my-namespace on api-server https://192.168.178.31:8443: unknown (get deployments.apps)
+[k8smon] 2021-06-13 13:15:05.901 ERROR error during task minishift: exit status 1
+[k8smon] 2021-06-13 13:15:05.901 DEBUG task minishift work ended
+[k8smon] 2021-06-13 13:15:05.901 ERROR error during task minishift-si: exit status 1
+[k8smon] 2021-06-13 13:15:05.901 DEBUG task minishift-si work ended
+[k8smon] 2021-06-13 13:20:05.902 DEBUG task minishift-si starting work
+[k8smon] 2021-06-13 13:20:05.902 DEBUG task minishift starting work
+[k8smon] 2021-06-13 13:20:05.902 DEBUG Starting E:\projects\go\src\github.com\frohwerk\deputy-backend\bin\k8swatcher.exe minishift
+[k8smon] 2021-06-13 13:20:05.902 DEBUG Starting E:\projects\go\src\github.com\frohwerk\deputy-backend\bin\k8swatcher.exe minishift-si
+[minishift-si] TODO: check if handleEvent method in k8swatcher.go can be removed (maybe create a second handler like deployments.go)
+[minishift] TODO: check if handleEvent method in k8swatcher.go can be removed (maybe create a second handler like deployments.go)
+[minishift-si] TODO: replace hard coded certificate file
+[minishift-si] TODO: add option to get secret and certificate file from a file reference (useful fur cluster deployment)
+[minishift] TODO: replace hard coded certificate file
+[minishift] TODO: add option to get secret and certificate file from a file reference (useful fur cluster deployment)
+[minishift-si] error watching namespace my-namespace on api-server https://192.168.178.31:8443: unknown (get deployments.apps)
+[minishift] error watching namespace my-namespace on api-server https://192.168.178.31:8443: unknown (get deployments.apps)
+[k8smon] 2021-06-13 13:20:06.331 ERROR error during task minishift-si: exit status 1
+[k8smon] 2021-06-13 13:20:06.331 DEBUG task minishift-si work ended
+panic: runtime error: index out of range [5] with length 5
+
+goroutine 14 [running]:
+github.com/frohwerk/deputy-backend/internal/task.(*task).Start(0xc00012cb60)
+        E:/projects/go/src/github.com/frohwerk/deputy-backend/internal/task/task.go:59 +0x745
+created by github.com/frohwerk/deputy-backend/internal/task.StartAll
+        E:/projects/go/src/github.com/frohwerk/deputy-backend/internal/task/util.go:5 +0x73

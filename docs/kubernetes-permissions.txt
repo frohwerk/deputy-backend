@@ -1,0 +1,2 @@
+oc create role image-patcher --verb=patch --resource=deployment.apps -n myproject
+oc adm policy add-role-to-user image-patcher system:serviceaccount:myproject:deputy --role-namespace=myproject -n myproject
