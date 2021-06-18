@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -10,6 +11,7 @@ import (
 )
 
 func (h *componentHandler) List(rw http.ResponseWriter, r *http.Request) {
+	fmt.Println("Incoming request: componentHandler.list")
 	components, err := h.list(r.URL.Query())
 	if err != nil {
 		httputil.WriteErrorResponse(rw, err)
@@ -30,6 +32,11 @@ func (h *componentHandler) list(params map[string][]string) ([]component, error)
 	result := make([]component, len(components))
 	for i, c := range components {
 		result[i] = component{Id: c.Id, Name: c.Name}
+
+		if envId == "" {
+			continue
+		}
+
 		deployments, err := h.getDeployments(c.Id, envId)
 
 		switch {

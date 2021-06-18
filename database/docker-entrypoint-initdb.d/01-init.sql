@@ -24,6 +24,16 @@ CREATE TABLE components (
     PRIMARY KEY (id)
 );
 
+-- Dependencies relationship between components
+DROP TABLE IF EXISTS dependencies;
+CREATE TABLE dependencies (
+    id          VARCHAR(36) NOT NULL,
+    depends_on  VARCHAR(36) NOT NULL,
+    FOREIGN KEY (id) REFERENCES components (id) ON DELETE CASCADE,
+    FOREIGN KEY (depends_on) REFERENCES components (id) ON DELETE CASCADE,
+    PRIMARY KEY (id, depends_on)
+);
+
 -- Deployments entity
 CREATE TABLE deployments (
     component_id VARCHAR(36) NOT NULL,

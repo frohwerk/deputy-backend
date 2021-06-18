@@ -1,6 +1,8 @@
 package components
 
 import (
+	"database/sql"
+
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/epoch"
 )
@@ -13,13 +15,15 @@ type component struct {
 }
 
 type componentHandler struct {
+	db          *sql.DB
 	components  database.ComponentStore
 	deployments database.DeploymentStore
 }
 
 func NewHandler(
+	db *sql.DB,
 	components database.ComponentStore,
 	deployments database.DeploymentStore,
 ) *componentHandler {
-	return &componentHandler{components, deployments}
+	return &componentHandler{db, components, deployments}
 }
