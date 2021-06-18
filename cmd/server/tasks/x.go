@@ -57,8 +57,8 @@ func Stuff(kube kubernetes.Interface, newimg string) {
 				}
 
 				img := pod.Spec.Containers[0].Image
-				ready := isPodReady(pod)
-				fmt.Printf("%s %s Pod: %s Image: %s Ready: %v\n", time.Now(), evt.Type, pod.Name, img, ready)
+				available := isPodAvailable(pod)
+				fmt.Printf("%s %s Pod: %s Image: %s Phase: %s Available: %v\n", time.Now().Format(time.RFC3339), evt.Type, pod.Name, img, pod.Status.Phase, available)
 
 				switch evt.Type {
 				case watch.Added:
@@ -79,7 +79,7 @@ func Stuff(kube kubernetes.Interface, newimg string) {
 				fmt.Printf("%s running in %v/%v containers\n", oldimg, old, r)
 				fmt.Printf("%s running in %v/%v containers\n", newimg, new, r)
 				if new == r && old == 0 {
-					break eventloop
+					done <- nil
 				}
 			}
 		}
@@ -104,7 +104,7 @@ func Stuff(kube kubernetes.Interface, newimg string) {
 	<-done
 }
 
-func isPodReady(pod *core.Pod) bool {
+func isPodAvailable(pod *core.Pod) bool {
 	secs := pod.ObjectMeta.DeletionGracePeriodSeconds
 	if secs != nil {
 		return false // Pods scheduled for deletion are no longer used by load balancers
