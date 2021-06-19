@@ -1,24 +1,156 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 
-	"github.com/frohwerk/deputy-backend/cmd/server/tasks"
+	"github.com/frohwerk/deputy-backend/cmd/server/apps"
+	"github.com/frohwerk/deputy-backend/internal/database"
+	"github.com/frohwerk/deputy-backend/internal/epoch"
+	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
 )
+
+type byId []apps.Component
+
+func (s byId) Len() int {
+	return len(s)
+}
+
+func (s byId) Less(i, j int) bool {
+	return s[i].Id < s[j].Id
+}
+
+func (s byId) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+type PatchSpec struct {
+	Template PatchTemplate `json:"template,omitempty"`
+}
+
+type PatchTemplate struct {
+	Spec corev1.PodSpec `json:"spec,omitempty"`
+}
+
+type DeploymentPatch struct {
+	Component string    `json:"-"`
+	Platform  string    `json:"-"`
+	Spec      PatchSpec `json:"spec,omitempty"`
+}
 
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatalln("missing parameter: image reference")
 	}
 
-	image := os.Args[1]
+	appId := os.Args[1]
+	at := os.Args[2]
+	source := os.Args[3]
+	target := os.Args[4]
 
+	before, err := parseTime(at)
+	if err != nil {
+		log.Fatalf("invalid parameter value 'at': %s", err)
+	}
+
+	db := database.Open()
+	defer db.Close()
+
+	repo := apps.NewRepository(db)
+	platforms := k8s.CreateConfigRepository(db)
+
+	sourceEnv, err := platforms.Environment(source)
+	if err != nil {
+		log.Fatalf("error reading source environment configuration: %s", err)
+	}
+
+	targetEnv, err := platforms.Environment(target)
+	if err != nil {
+		log.Fatalf("error reading target environment configuration: %s", err)
+	}
+
+	targetApp, err := repo.CurrentView(appId, target)
+	if err != nil {
+		log.Fatalf("error reading target application: %s", err)
+	}
+
+	sourceApp, err := repo.History(appId, source, &before)
+	if err != nil {
+		log.Fatalf("error reading source application: %s", err)
+	}
+
+	patches, err := createPatches(sourceApp.Components, targetApp.Components)
+	if err != nil {
+		log.Fatalf("error creating patches for target: %s", err)
+	}
+
+	fmt.Printf("Patching environment %s\n", target)
+	for _, patch := range patches {
+		source, err := sourceEnv.Platform(patch.Platform)
+		if err != nil {
+			log.Fatalf("error reading source platform: %v", err)
+		}
+
+		target, err := targetEnv.Platform(patch.Platform)
+		if err != nil {
+			log.Fatalf("error reading target platform: %v", err)
+		}
+
+		patchData, err := json.Marshal(patch)
+		if err != nil {
+			log.Fatalf("error marshalling patch data: %v", err)
+		}
+
+		target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData)
+
+		deployment, err := source.Deployments().Get(patch.Component, metav1.GetOptions{})
+		if err != nil {
+			log.Fatalf("error reading deployment: %s\n", err)
+		}
+
+		replicas := uint(*deployment.Spec.Replicas)
+		fmt.Printf("Component %s uses %v replicas\n", deployment.Name, replicas)
+
+		labelQuery := labels.Set(deployment.Spec.Selector.MatchLabels).String()
+		watch, err := target.Pods().Watch(metav1.ListOptions{LabelSelector: labelQuery})
+		if err != nil {
+			log.Fatalf("error starting pods watch: %s\n", err)
+		}
+
+		// done := make(chan interface{}, 1)
+		// TODO See tracker in x.go!
+		// HERE gehts weiter
+		// t := tracker{watch, oldImageRef, newImageRef}; <-t.done()
+	}
+
+	// TODO ./cmd/server/apps/get.go: Reuse apps view with history
+	// Input: app_id, at (timestamp), from_env, to_env
+	fmt.Println("TODO: add timeout for the whole thing")
+	// For each component (determine a reasonable order!):
+	//
+}
+
+func getKubeconfig() (string, error) {
+	if home := homedir.HomeDir(); home != "" {
+		return filepath.Join(home, ".kube", "config"), nil
+	} else {
+		return "", fmt.Errorf("error loading kubeconfig: no home directory found")
+	}
+}
+
+func createKubernetesClient() (*kubernetes.Clientset, error) {
 	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
 	cadata, err := os.ReadFile(cafile)
 	if err != nil {
@@ -34,18 +166,54 @@ func main() {
 		},
 	}
 
-	kube, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("error creating kubernetes client: %s", err)
-	}
-
-	tasks.Stuff(kube, image)
+	return kubernetes.NewForConfig(config)
 }
 
-func getKubeconfig() (string, error) {
-	if home := homedir.HomeDir(); home != "" {
-		return filepath.Join(home, ".kube", "config"), nil
-	} else {
-		return "", fmt.Errorf("error loading kubeconfig: no home directory found")
+func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, error) {
+	if len(source) != len(target) {
+		return nil, fmt.Errorf("source and target must have the same components")
+	}
+
+	patches := []k8s.DeploymentPatch{}
+	sort.Sort(byId(source))
+	sort.Sort(byId(target))
+
+componentLoop:
+	for i := 0; i < len(source); i++ {
+		source, target := source[i], target[i]
+		switch {
+		case source.Id != target.Id:
+			return nil, fmt.Errorf("source and target must have the same components")
+		case source.Platform != target.Platform:
+			return nil, fmt.Errorf("source and target must use the same platform (may use different environments)")
+		case source.Image == target.Image:
+			fmt.Print("continue")
+			continue componentLoop
+		case source.Image == "":
+			return nil, fmt.Errorf("source has no image specified for component %s", source.Id)
+		case target.Image == "":
+			return nil, fmt.Errorf("target has no image specified for component %s", source.Id)
+		}
+		patch := k8s.DeploymentPatch{
+			Component: source.Name,
+			Platform:  source.Platform,
+			Spec: k8s.DeploymentPatchSpec{
+				Template: k8s.PodTemplatePatch{
+					Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: source.Name, Image: source.Image}}},
+				},
+			},
+		}
+		patches = append(patches, patch)
+	}
+
+	return patches, nil
+}
+
+func parseTime(t string) (time.Time, error) {
+	switch t {
+	case "*":
+		return time.Now(), nil
+	default:
+		return epoch.ParseTime(t)
 	}
 }

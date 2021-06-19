@@ -1,100 +1,114 @@
 package kubernetes
 
 import (
+	"database/sql"
 	"fmt"
-	"path/filepath"
+	"os"
 
-	"github.com/frohwerk/deputy-backend/internal"
-	"github.com/frohwerk/deputy-backend/pkg/api"
-
-	appsv1 "k8s.io/api/apps/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
+	"k8s.io/client-go/kubernetes"
+	apps "k8s.io/client-go/kubernetes/typed/apps/v1"
+	core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 )
 
-type cluster struct {
-	client *k8s.Clientset
+type DataSource interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
-func WithDefaultConfig() (*cluster, error) {
-	// TODO: How to detect in-cluster configuration and out-of-cluster configuration?
-	// config, err := rest.InClusterConfig()
-	kubeconfig, err := getKubeconfig()
+type ConfigRepository struct {
+	db DataSource
+}
+
+type Environment struct {
+	id      string
+	name    string
+	configs map[string]*config
+}
+
+type config struct {
+	host      string
+	namespace string
+	secret    string
+	x509cert  []byte
+}
+
+type platform struct {
+	namespace string
+	client    kubernetes.Interface
+}
+
+var (
+	cadata []byte
+)
+
+func init() {
+	var err error
+	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
+	cadata, err = os.ReadFile(cafile)
+	if err != nil {
+		fmt.Printf("error reading cadata from %s: %s", cafile, err)
+		os.Exit(1)
+	}
+}
+
+func CreateConfigRepository(db DataSource) *ConfigRepository {
+	return &ConfigRepository{db}
+}
+
+func (repo *ConfigRepository) Environment(envId string) (*Environment, error) {
+	rows, err := repo.db.Query(`
+	  SELECT envs.id, envs.name, platforms.name, platforms.api_server, platforms.namespace, platforms.secret
+	    FROM envs JOIN platforms ON platforms.env_id = envs.id
+	   WHERE envs.id = $1
+	     AND platforms.api_server IS NOT NULL
+		 AND platforms.namespace IS NOT NULL
+		 AND platforms.secret IS NOT NULL
+	`, envId)
+
 	if err != nil {
 		return nil, err
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load kubernetes configuration: %s\n", err)
+	env := Environment{configs: map[string]*config{}}
+	for i := 0; rows.Next(); i++ {
+		var envId, envName, name, host, namespace, token string
+		err := rows.Scan(&envId, &envName, &name, &host, &namespace, &token)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if i == 0 {
+			env.id = envId
+			env.name = envName
+		}
+
+		env.configs[name] = &config{host: host, namespace: namespace, secret: token, x509cert: cadata}
 	}
 
-	client, err := k8s.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load kubernetes configuration: %s\n", err)
-	}
-
-	return &cluster{client}, nil
+	return &env, nil
 }
 
-func getKubeconfig() (string, error) {
-	if home := homedir.HomeDir(); home != "" {
-		return filepath.Join(home, ".kube", "config"), nil
+func (env *Environment) Platform(name string) (*platform, error) {
+	if params, ok := env.configs[name]; ok {
+		config := rest.Config{Host: params.host, BearerToken: params.secret, TLSClientConfig: rest.TLSClientConfig{CAData: params.x509cert}}
+
+		client, err := kubernetes.NewForConfig(&config)
+		if err != nil {
+			return nil, err
+		}
+
+		return &platform{client: client, namespace: params.namespace}, nil
 	} else {
-		return "", fmt.Errorf("error loading kubeconfig: no home directory found")
+		return nil, fmt.Errorf("configuration for platform %s is not available in environment %s", name, env.name)
 	}
 }
 
-func (c *cluster) GetComponents() ([]api.Component, error) {
-	deployments, err := c.client.AppsV1().Deployments("myproject").List(metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to load kubernetes configuration: %s\n", err)
-	}
-
-	components := make([]api.Component, len(deployments.Items))
-	for i, item := range deployments.Items {
-		components[i] = api.Component{
-			Name: item.ObjectMeta.Name,
-		}
-	}
-
-	return components, nil
+func (p *platform) Deployments() apps.DeploymentInterface {
+	return p.client.AppsV1().Deployments(p.namespace)
 }
 
-func (c *cluster) WatchComponents() (internal.Observable, error) {
-	watch, err := c.client.AppsV1().Deployments("myproject").Watch(metav1.ListOptions{})
-	if err != nil {
-		return internal.Observable{}, err
-	}
-
-	events := make(chan api.Event, 1)
-
-	observable := internal.Observable{
-		Events: events,
-		Stop:   watch.Stop,
-	}
-
-	go func() {
-		for event := range watch.ResultChan() {
-			switch o := event.Object.(type) {
-			case *appsv1.Deployment:
-				fmt.Printf("Sending %v event for artifact %v in namespace\n", event.Type, o.Name)
-				events <- api.Event{
-					EventType: string(event.Type),
-					Object: api.Component{
-						Name: o.Name,
-					},
-				}
-			default:
-				fmt.Printf("unexpected event object of type %T\n", event.Object)
-			}
-		}
-		fmt.Println("Stopped watching Deployments on Kubernetes cluster")
-	}()
-
-	return observable, nil
+func (p *platform) Pods() core.PodInterface {
+	return p.client.Core().Pods(p.namespace)
 }

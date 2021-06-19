@@ -2,6 +2,8 @@ package epoch
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,20 @@ func FromTime(t *time.Time) *Epoch {
 	}
 	e := Epoch(*t)
 	return &e
+}
+
+func ParseTime(s string) (time.Time, error) {
+	parts := strings.SplitN(s, ".", 2)
+	secs, err := strconv.ParseInt(parts[0], 10, 64)
+	time.Parse(time.UnixDate, "")
+	if err != nil {
+		return time.Time{}, err
+	}
+	nsecs, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(secs, nsecs*microsecond), nil
 }
 
 func (e *Epoch) MarshalText() ([]byte, error) {

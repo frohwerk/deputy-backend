@@ -1,0 +1,21 @@
+@startuml Test
+
+skinparam Shadowing false
+skinparam Monochrome true
+skinparam Handwritten false
+
+skinparam sequence {
+    MessageAlign center
+}
+
+hide footbox
+
+participant copy as "DeploymentController\n"
+participant k8s as "Kubernetes\nAPI-Server"
+
+-> copy: set(deploymentName, newImageName)
+copy -> k8s: getDeployment(deploymentName)
+copy <- k8s: replicas, oldImageName
+
+
+@enduml
