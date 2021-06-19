@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -14,9 +13,6 @@ import (
 	"github.com/frohwerk/deputy-backend/internal/epoch"
 	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/homedir"
@@ -71,11 +67,6 @@ func main() {
 	repo := apps.NewRepository(db)
 	platforms := k8s.CreateConfigRepository(db)
 
-	sourceEnv, err := platforms.Environment(source)
-	if err != nil {
-		log.Fatalf("error reading source environment configuration: %s", err)
-	}
-
 	targetEnv, err := platforms.Environment(target)
 	if err != nil {
 		log.Fatalf("error reading target environment configuration: %s", err)
@@ -98,36 +89,14 @@ func main() {
 
 	fmt.Printf("Patching environment %s\n", target)
 	for _, patch := range patches {
-		source, err := sourceEnv.Platform(patch.Platform)
-		if err != nil {
-			log.Fatalf("error reading source platform: %v", err)
-		}
-
 		target, err := targetEnv.Platform(patch.Platform)
 		if err != nil {
 			log.Fatalf("error reading target platform: %v", err)
 		}
 
-		patchData, err := json.Marshal(patch)
-		if err != nil {
-			log.Fatalf("error marshalling patch data: %v", err)
-		}
-
-		target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData)
-
-		deployment, err := source.Deployments().Get(patch.Component, metav1.GetOptions{})
-		if err != nil {
-			log.Fatalf("error reading deployment: %s\n", err)
-		}
-
-		replicas := uint(*deployment.Spec.Replicas)
-		fmt.Printf("Component %s uses %v replicas\n", deployment.Name, replicas)
-
-		labelQuery := labels.Set(deployment.Spec.Selector.MatchLabels).String()
-		watch, err := target.Pods().Watch(metav1.ListOptions{LabelSelector: labelQuery})
-		if err != nil {
-			log.Fatalf("error starting pods watch: %s\n", err)
-		}
+		// Maybe return chan for completion signal?
+		// Maybe use context for timeout?
+		k8s.Apply(target, &patch)
 
 		// done := make(chan interface{}, 1)
 		// TODO See tracker in x.go!
