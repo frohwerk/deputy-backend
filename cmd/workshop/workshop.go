@@ -96,12 +96,14 @@ func main() {
 
 		// Maybe return chan for completion signal?
 		// Maybe use context for timeout?
-		k8s.Apply(target, &patch)
+		// Maybe move (and rename) to Environment::ApplyPatch ?
+		complete, err := k8s.Apply(target, &patch)
+		if err != nil {
+			log.Fatalf("error applying patch: %v", err)
+		}
 
-		// done := make(chan interface{}, 1)
-		// TODO See tracker in x.go!
-		// HERE gehts weiter
-		// t := tracker{watch, oldImageRef, newImageRef}; <-t.done()
+		// Wait for completion
+		<-complete
 	}
 
 	// TODO ./cmd/server/apps/get.go: Reuse apps view with history

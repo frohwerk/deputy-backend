@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,10 +39,10 @@ func (p pods) Available() uint {
 	return ct
 }
 
-func Apply(target *platform, patch *DeploymentPatch) error {
+func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error) {
 	deployment, err := target.Deployments().Get(patch.Component, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("error reading deployment on target platform: %v", err)
+		return nil, fmt.Errorf("error reading deployment on target platform: %v", err)
 	}
 
 	replicas := uint(*deployment.Spec.Replicas)
@@ -55,7 +54,7 @@ func Apply(target *platform, patch *DeploymentPatch) error {
 	query := labels.Set(deployment.Spec.Selector.MatchLabels).String()
 	podsw, err := target.Pods().Watch(metav1.ListOptions{LabelSelector: query})
 	if err != nil {
-		return fmt.Errorf("error starting pods watch: %v", err)
+		return nil, fmt.Errorf("error starting pods watch: %v", err)
 	}
 
 	defer podsw.Stop()
@@ -94,14 +93,12 @@ func Apply(target *platform, patch *DeploymentPatch) error {
 	// TODO: wait for ${replicas} updated pods to complete startup and ${replicas} old pods to be scheduled for deletion
 	patchData, err := json.Marshal(patch)
 	if err != nil {
-		log.Fatalf("error marshalling patch data: %v", err)
+		return nil, fmt.Errorf("error marshalling patch data: %v", err)
 	}
 
 	target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData)
 
-	<-complete
-
-	return nil
+	return complete, nil
 }
 
 func isPodAvailable(pod *corev1.Pod) bool {
