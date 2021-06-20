@@ -139,6 +139,7 @@ func Run(cmd *cobra.Command, args []string) {
 		r.Get("/{env}", envs.Get(es))
 		r.Post("/", envs.Create(es))
 		r.Put("/{env}", envs.Update(es))
+		r.Patch("/{env}", envs.Patch(db))
 		r.Delete("/{env}", envs.Delete(es))
 		r.Route("/{env}/platforms", func(r chi.Router) {
 			r.Get("/", platforms.List(ps))

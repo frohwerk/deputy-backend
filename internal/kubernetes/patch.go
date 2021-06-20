@@ -39,7 +39,7 @@ func (p pods) Available() uint {
 	return ct
 }
 
-func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error) {
+func (target *platform) Apply(patch *DeploymentPatch) (<-chan interface{}, error) {
 	deployment, err := target.Deployments().Get(patch.Component, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error reading deployment on target platform: %v", err)

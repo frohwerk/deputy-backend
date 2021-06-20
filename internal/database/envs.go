@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 
@@ -9,8 +10,9 @@ import (
 )
 
 type Env struct {
-	Id   string
-	Name string
+	Id    string
+	Name  string
+	Order int
 }
 
 type EnvCreator interface {
@@ -57,7 +59,7 @@ func NewEnvStore(db *sql.DB) EnvStore {
 func (s *envStore) Create(name string) (*Env, error) {
 	return s.queryOne(`
 		INSERT INTO envs (name) VALUES(NULLIF($1, ''))
-		RETURNING id, name
+		RETURNING id, name, order_hint
 	`, name)
 }
 
@@ -66,20 +68,20 @@ func (s *envStore) Update(env *Env) (*Env, error) {
 		UPDATE envs SET
 		name = NULLIF($2, '')
 		WHERE id = $1
-		RETURNING id, name
+		RETURNING id, name, order_hint
 	`, env.Id, env.Name)
 }
 
 func (s *envStore) List() ([]Env, error) {
 	return s.queryAll(`
-		SELECT id, name
+		SELECT id, name, order_hint
 		FROM envs
 	`)
 }
 
 func (s *envStore) Get(id string) (*Env, error) {
 	return s.queryOne(`
-		SELECT id, name
+		SELECT id, name, order_hint
 		FROM envs
 		WHERE id = $1
 	`, id)
@@ -87,7 +89,7 @@ func (s *envStore) Get(id string) (*Env, error) {
 
 func (s *envStore) FindByName(name string) (*Env, error) {
 	return s.queryOne(`
-		SELECT id, name
+		SELECT id, name, order_hint
 		FROM envs
 		WHERE lower(name) = $1
 	`, strings.ToLower(name))
@@ -97,7 +99,7 @@ func (s *envStore) Delete(id string) (*Env, error) {
 	return s.queryOne(`
 		DELETE FROM envs
 		WHERE id = $1
-		RETURNING id, name
+		RETURNING id, name, order_hint
 	`, id)
 }
 
@@ -116,6 +118,7 @@ func (s *envStore) queryAll(query string, args ...interface{}) ([]Env, error) {
 		if env, err := scanEnv(rows); err != nil {
 			return nil, err
 		} else {
+			fmt.Println("Env: ", env.Id, env.Name, env.Order)
 			envs = append(envs, *env)
 		}
 	}
@@ -133,7 +136,7 @@ func (s *envStore) exec(query string, args ...interface{}) error {
 
 func scanEnv(s scanner) (*Env, error) {
 	e := Env{}
-	if err := s.Scan(&e.Id, &e.Name); err != nil {
+	if err := s.Scan(&e.Id, &e.Name, &e.Order); err != nil {
 		return nil, err
 	}
 	return &e, nil

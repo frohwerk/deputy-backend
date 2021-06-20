@@ -9,7 +9,7 @@ import (
 )
 
 func toApiObject(env *database.Env) *api.Env {
-	return &api.Env{Id: env.Id, Name: env.Name}
+	return &api.Env{Id: &env.Id, Name: &env.Name, Order: &env.Order}
 }
 
 func sendResult(entity *database.Env, err error, rw http.ResponseWriter) {
@@ -27,9 +27,9 @@ func sendResults(entities []database.Env, err error, rw http.ResponseWriter) {
 		return
 	}
 
-	envs := make([]api.Env, len(entities))
-	for i, v := range entities {
-		envs[i] = api.Env{Id: v.Id, Name: v.Name}
+	envs := make([]*api.Env, len(entities))
+	for i := range entities {
+		envs[i] = toApiObject(&entities[i])
 	}
 
 	httputil.WriteJsonResponse(rw, envs)

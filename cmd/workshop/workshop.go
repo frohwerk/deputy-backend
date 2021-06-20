@@ -94,10 +94,8 @@ func main() {
 			log.Fatalf("error reading target platform: %v", err)
 		}
 
-		// Maybe return chan for completion signal?
 		// Maybe use context for timeout?
-		// Maybe move (and rename) to Environment::ApplyPatch ?
-		complete, err := k8s.Apply(target, &patch)
+		complete, err := target.Apply(&patch)
 		if err != nil {
 			log.Fatalf("error applying patch: %v", err)
 		}
