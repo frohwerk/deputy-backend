@@ -57,8 +57,6 @@ func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error)
 		return nil, fmt.Errorf("error starting pods watch: %v", err)
 	}
 
-	defer podsw.Stop()
-
 	complete := make(chan interface{}, 1)
 	podsWith := images{
 		oldImage: pods{},
@@ -68,9 +66,10 @@ func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error)
 	go func() {
 	eventloop:
 		for evt := range podsw.ResultChan() {
+			fmt.Printf("%s event for object of type %T\n", evt.Type, evt.Object)
 			pod, ok := evt.Object.(*corev1.Pod)
 			if !ok {
-				fmt.Printf("unexpected object of type %T in %s-event", evt.Object, evt.Type)
+				fmt.Printf("unexpected object of type %T in %s-event\n", evt.Object, evt.Type)
 				continue eventloop
 			}
 
@@ -84,7 +83,13 @@ func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error)
 				}
 				pods[pod.Name] = isPodAvailable(pod)
 			}
-			if podsWith[oldImage].Available() == 0 && podsWith[newImage].Available() == replicas {
+			old := podsWith[oldImage].Available()
+			new := podsWith[newImage].Available()
+			fmt.Printf("%v/%v pods are available with image %s\n", old, replicas, oldImage)
+			fmt.Printf("%v/%v pods are available with image %s\n", new, replicas, newImage)
+			if old == 0 && new == replicas {
+				fmt.Printf("stopping pods watch\n")
+				podsw.Stop()
 				complete <- nil
 			}
 		}
@@ -96,7 +101,11 @@ func Apply(target *platform, patch *DeploymentPatch) (<-chan interface{}, error)
 		return nil, fmt.Errorf("error marshalling patch data: %v", err)
 	}
 
-	target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData)
+	if _, err := target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("patch has been applied...")
 
 	return complete, nil
 }

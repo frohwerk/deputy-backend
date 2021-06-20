@@ -26,19 +26,18 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
   DECLARE
     _timestamp  timestamp = CURRENT_TIMESTAMP;
   BEGIN
+    RAISE NOTICE '% on deployments', TG_OP;
     CASE TG_OP
 
       WHEN 'INSERT' THEN
-        NEW.updated := COALESCE(NEW.updated, _timestamp);
+        RAISE NOTICE 'insert deployments: %, %, %, %', NEW.component_id, NEW.platform_id, NEW.updated, NEW.image_ref;
         PERFORM write_apps_timeline(NEW.platform_id, NEW.component_id, NEW.updated);
         RETURN NEW;
 
       WHEN 'UPDATE' THEN
         RAISE NOTICE 'update deployments: %, %, %, %', OLD.component_id, OLD.platform_id, NEW.updated, NEW.image_ref;
-        CASE
-          WHEN NEW.image_ref = OLD.image_ref THEN RETURN NEW;
-          WHEN NEW.updated = OLD.updated OR NEW.updated IS NULL THEN NEW.updated = _timestamp;
-        END CASE;
+        IF NEW.image_ref = OLD.image_ref THEN RETURN NEW; END IF;
+        IF NEW.updated = OLD.updated OR NEW.updated IS NULL THEN NEW.updated = _timestamp; END IF;
         INSERT INTO deployments_history (component_id, platform_id, valid_from, valid_until, image_ref)
                VALUES(OLD.component_id, OLD.platform_id, OLD.updated, NEW.updated, OLD.image_ref)
                ON CONFLICT DO NOTHING;
@@ -60,7 +59,7 @@ CREATE OR REPLACE FUNCTION write_deployments_history() RETURNS trigger AS $$
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER write_deployments_history
-BEFORE INSERT OR UPDATE OR DELETE ON deployments
+AFTER INSERT OR UPDATE OR DELETE ON deployments
 FOR EACH ROW EXECUTE FUNCTION write_deployments_history();
 
 -- History for apps_components table
@@ -93,7 +92,7 @@ CREATE OR REPLACE FUNCTION write_apps_components_history() RETURNS trigger AS $$
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER write_apps_components_history
-BEFORE INSERT OR UPDATE OR DELETE ON apps_components
+AFTER INSERT OR UPDATE OR DELETE ON apps_components
 FOR EACH ROW EXECUTE FUNCTION write_apps_components_history();
 
 -- Add apps_timeline entry for new apps

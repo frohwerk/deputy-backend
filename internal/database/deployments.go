@@ -47,10 +47,11 @@ func (ds *deploymentStore) ListForEnv(componentId, envId string) ([]Deployment, 
 
 func (ds *deploymentStore) SetImage(componentId, platformId, imageRef string) (*Deployment, error) {
 	return ds.queryDeployment(`
-	INSERT INTO deployments (component_id, platform_id, image_ref) VALUES ($1, $2, $3)
-	ON CONFLICT (component_id, platform_id) DO
-	UPDATE SET image_ref = EXCLUDED.image_ref, updated = CURRENT_TIMESTAMP
-	RETURNING component_id, platform_id, image_ref, updated
+		INSERT INTO deployments (component_id, platform_id, image_ref, updated) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+		ON CONFLICT (component_id, platform_id) DO
+		UPDATE SET image_ref = EXCLUDED.image_ref, updated = EXCLUDED.updated
+		WHERE deployments.component_id = EXCLUDED.component_id AND deployments.platform_id = EXCLUDED.platform_id AND deployments.image_ref != EXCLUDED.image_ref
+		RETURNING component_id, platform_id, image_ref, updated
 	`, componentId, platformId, imageRef)
 }
 
@@ -79,8 +80,12 @@ func (ds *deploymentStore) queryDeployments(query string, args ...interface{}) (
 
 func scanDeployment(s scanner) (*Deployment, error) {
 	entity := Deployment{}
-	if err := s.Scan(&entity.ComponentId, &entity.PlatformId, &entity.ImageRef, &entity.Updated); err != nil {
+	switch err := s.Scan(&entity.ComponentId, &entity.PlatformId, &entity.ImageRef, &entity.Updated); err {
+	case nil:
+		return &entity, nil
+	case sql.ErrNoRows:
+		return nil, nil
+	default:
 		return nil, err
 	}
-	return &entity, nil
 }

@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -153,60 +152,6 @@ func main() {
 
 			}
 		}
-	}
-}
-
-func handleEvent(event watch.Event) {
-	switch o := event.Object.(type) {
-	case *apps.Deployment:
-		fmt.Println("TODO  Use transaction for multiple database changes")
-		if event.Type == watch.Added {
-			if c, err := components.CreateIfAbsent(o.Name); err != nil {
-				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
-			} else {
-				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", o.Name, c.Id)
-			}
-		}
-		fmt.Println("TODO: write deployments entry")
-		c, err := components.SetImage(o.Name, strings.TrimPrefix(o.Spec.Template.Spec.Containers[0].Image, "docker-pullable://"))
-		if err != nil {
-			fmt.Printf("ERROR Failed to update image for component %s: %s\n", o.Name, err)
-			return
-		} else {
-			fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
-		}
-		if trace {
-			logEvent(event, o.ObjectMeta)
-		}
-		// fmt.Printf("Deployment %s: %s\n", o.Name, event.Type)
-	case *core.Pod:
-		// TODO: Find matching deployment
-		// TODO: Support different labels
-		if trace {
-			logEvent(event, o.ObjectMeta)
-		}
-		if o.Status.Phase == core.PodRunning {
-			name, err := GetName(&o.ObjectMeta)
-			if err != nil {
-				fmt.Printf("error finding name for pod %s: %s\n", o.Name, err)
-				return
-			}
-			if c, err := components.CreateIfAbsent(name); err != nil {
-				fmt.Printf("ERROR Failed to register component '%s': %s\n", o.Name, err)
-			} else {
-				fmt.Printf("TRACE Component '%s' is registered with id '%s'\n", c.Name, c.Id)
-			}
-			imageid := o.Status.ContainerStatuses[0].ImageID
-			if c, err := components.SetImage(name, strings.TrimPrefix(imageid, "docker-pullable://")); err != nil {
-				fmt.Printf("ERROR Failed to update image for component %s: %s\n", name, err)
-			} else {
-				fmt.Printf("TRACE Updated image for component %s to %s\n", c.Name, c.Image)
-			}
-			// TODO: scan for matches with registered artifacts
-			// If one artifact matches with multiple versions, use the most precise match (most matched files)
-		}
-	default:
-		printYaml(event)
 	}
 }
 

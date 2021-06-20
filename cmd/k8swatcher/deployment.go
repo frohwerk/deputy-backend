@@ -38,10 +38,14 @@ func (h *deploymentHandler) handleEvent(event watch.Event) error {
 	log.Debug("Component '%s' is registered with id '%s'", obj.Name, c.Id)
 
 	d, err := h.deployments.SetImage(c.Id, h.platform.Id, strings.TrimPrefix(obj.Spec.Template.Spec.Containers[0].Image, "docker-pullable://"))
-	if err != nil {
+	switch {
+	case err != nil:
 		return err
+	case d == nil:
+		log.Trace("Component '%s' is unmodified", obj.Name)
+	default:
+		log.Debug("Updated image for component %s to %s\n", c.Name, d.ImageRef)
 	}
-	log.Debug("Updated image for component %s to %s\n", c.Name, d.ImageRef)
 
 	return nil
 }

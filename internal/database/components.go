@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
@@ -56,6 +57,7 @@ func (s *componentStore) CreateIfAbsent(name string) (*Component, error) {
 }
 
 func (s *componentStore) SetImage(name string, image string) (*Component, error) {
+	fmt.Printf(`UPDATE components SET image = %s WHERE name = %s RETURNING id, name`, image, name)
 	return s.selectComponent(`
 		UPDATE components
 		SET image = $2

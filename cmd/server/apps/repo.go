@@ -53,7 +53,7 @@ func (h *Repository) History(id, envId string, before *time.Time) (*App, error) 
         FROM params CROSS JOIN slice
        INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
        INNER JOIN apps ON apps.id = h.app_id
-	   INNER JOIN platforms ON platforms.id = h.platform_id
+	    LEFT JOIN platforms ON platforms.id = h.platform_id
         LEFT JOIN components ON components.id = h.component_id
        ORDER BY 3 DESC, 5 ASC
     `, id, envId, before)
@@ -77,7 +77,7 @@ func (h *Repository) CurrentView(id, envId string) (*App, error) {
 		  FROM params CROSS JOIN slice
 	     INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
 	     INNER JOIN apps ON apps.id = h.app_id
-		 INNER JOIN platforms ON platforms.id = h.platform_id
+		  LEFT JOIN platforms ON platforms.id = h.platform_id
 		  LEFT JOIN components ON components.id = h.component_id
 	     ORDER BY 3 DESC, 5 ASC
 	`, id, envId)
