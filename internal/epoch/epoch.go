@@ -33,7 +33,7 @@ func ParseTime(s string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(secs, nsecs*microsecond), nil
+	return time.Unix(secs, nsecs*microsecond).In(time.UTC), nil
 }
 
 func (e *Epoch) MarshalText() ([]byte, error) {

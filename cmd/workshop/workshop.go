@@ -61,6 +61,8 @@ func main() {
 		log.Fatalf("invalid parameter value 'at': %s", err)
 	}
 
+	fmt.Printf("Source time: %v\n", before)
+
 	db := database.Open()
 	defer db.Close()
 
@@ -147,6 +149,16 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 	sort.Sort(byId(source))
 	sort.Sort(byId(target))
 
+	fmt.Println("Components (source):")
+	for _, c := range source {
+		fmt.Printf("%s => %s\n", c.Name, c.Image)
+	}
+
+	fmt.Println("Components (target):")
+	for _, c := range target {
+		fmt.Printf("%s => %s\n", c.Name, c.Image)
+	}
+
 componentLoop:
 	for i := 0; i < len(source); i++ {
 		source, target := source[i], target[i]
@@ -156,7 +168,7 @@ componentLoop:
 		case source.Platform != target.Platform:
 			return nil, fmt.Errorf("source and target must use the same platform (may use different environments)")
 		case source.Image == target.Image:
-			fmt.Print("continue")
+			fmt.Printf("%v == %v\n", source.Image, target.Image)
 			continue componentLoop
 		case source.Image == "":
 			return nil, fmt.Errorf("source has no image specified for component %s", source.Id)
