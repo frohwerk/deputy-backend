@@ -1,48 +1,12 @@
-package main
+package test
 
 import (
-	"database/sql"
 	"fmt"
-	"os"
 	"testing"
-	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
-
-var err error
-var db *sql.DB
-
-func TestMain(m *testing.M) {
-	db, err = sql.Open("postgres", "postgres://test:drowssap@database:5432/test?sslmode=disable")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-loop:
-	for i := 0; i < 15; i++ {
-		fmt.Println("Trying to connect to database postgres://database:5432/test?sslmode=disable")
-		err = db.Ping()
-		if err != nil {
-			fmt.Println("Failed to connect to database. Sleeping...")
-			time.Sleep(time.Second)
-		} else {
-			fmt.Println("Connected to database postgres://database:5432/test?sslmode=disable")
-			break loop
-		}
-	}
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	rc := m.Run()
-
-	os.Exit(rc)
-}
 
 func TestStuff(t *testing.T) {
 	err := CleanDatabase()
@@ -81,10 +45,9 @@ func CleanDatabase() error {
 	}
 
 	for _, statement := range statements {
-		fmt.Println(statement)
-		_, err := db.Exec(statement)
+		_, err := DB().Exec(statement)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("statement execution failed:\n%s\n%s\n", statement, err)
 			return err
 		}
 	}

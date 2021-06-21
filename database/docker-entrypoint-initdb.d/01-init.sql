@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS envs;
 CREATE TABLE envs (
-    id         VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
-    name       VARCHAR(50) NOT NULL UNIQUE,
-    order      INTEGER NOT NULL DEFAULT 0,
+    id          VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    name        VARCHAR(50) NOT NULL UNIQUE,
+    order_hint  INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
 
