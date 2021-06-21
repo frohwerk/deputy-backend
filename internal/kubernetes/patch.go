@@ -12,9 +12,10 @@ import (
 )
 
 type DeploymentPatch struct {
-	Component string              `json:"-"`
-	Platform  string              `json:"-"`
-	Spec      DeploymentPatchSpec `json:"spec,omitempty"`
+	ComponentId   string              `json:"-"`
+	ComponentName string              `json:"-"`
+	PlatformName  string              `json:"-"`
+	Spec          DeploymentPatchSpec `json:"spec,omitempty"`
 }
 
 type DeploymentPatchSpec struct {
@@ -40,7 +41,7 @@ func (p pods) Available() uint {
 }
 
 func (target *platform) Apply(patch *DeploymentPatch) (<-chan interface{}, error) {
-	deployment, err := target.Deployments().Get(patch.Component, metav1.GetOptions{})
+	deployment, err := target.Deployments().Get(patch.ComponentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error reading deployment on target platform: %v", err)
 	}
@@ -101,7 +102,7 @@ func (target *platform) Apply(patch *DeploymentPatch) (<-chan interface{}, error
 		return nil, fmt.Errorf("error marshalling patch data: %v", err)
 	}
 
-	if _, err := target.Deployments().Patch(patch.Component, types.StrategicMergePatchType, patchData); err != nil {
+	if _, err := target.Deployments().Patch(patch.ComponentName, types.StrategicMergePatchType, patchData); err != nil {
 		return nil, err
 	}
 

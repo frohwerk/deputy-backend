@@ -32,20 +32,6 @@ func (s byId) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-type PatchSpec struct {
-	Template PatchTemplate `json:"template,omitempty"`
-}
-
-type PatchTemplate struct {
-	Spec corev1.PodSpec `json:"spec,omitempty"`
-}
-
-type DeploymentPatch struct {
-	Component string    `json:"-"`
-	Platform  string    `json:"-"`
-	Spec      PatchSpec `json:"spec,omitempty"`
-}
-
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatalln("missing parameter: image reference")
@@ -91,7 +77,7 @@ func main() {
 
 	fmt.Printf("Patching environment %s\n", target)
 	for _, patch := range patches {
-		target, err := targetEnv.Platform(patch.Platform)
+		target, err := targetEnv.Platform(patch.PlatformName)
 		if err != nil {
 			log.Fatalf("error reading target platform: %v", err)
 		}
@@ -176,8 +162,9 @@ componentLoop:
 			return nil, fmt.Errorf("target has no image specified for component %s", source.Id)
 		}
 		patch := k8s.DeploymentPatch{
-			Component: source.Name,
-			Platform:  source.Platform,
+			ComponentId:   source.Id,
+			ComponentName: source.Name,
+			PlatformName:  source.Platform,
 			Spec: k8s.DeploymentPatchSpec{
 				Template: k8s.PodTemplatePatch{
 					Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: source.Name, Image: source.Image}}},
@@ -188,6 +175,33 @@ componentLoop:
 	}
 
 	return patches, nil
+}
+
+type helper struct {
+	order   int
+	patches []k8s.DeploymentPatch
+}
+
+func order(deployments database.DeploymentCounter, patches []k8s.DeploymentPatch) error {
+	deps := map[string]int{}
+	// result := map[int][]k8s.DeploymentPatch
+	for _, patch := range patches {
+		tbc := false
+		if _, ok := deps[patch.ComponentId]; ok {
+			tbc = true
+			continue
+		}
+		if tbc {
+			fmt.Println("this was not supposed to happen")
+		}
+		n, err := deployments.CountFor(patch.ComponentId)
+		if err != nil {
+			return err
+		}
+		deps[patch.ComponentId] = n
+	}
+
+	return nil
 }
 
 func parseTime(t string) (time.Time, error) {

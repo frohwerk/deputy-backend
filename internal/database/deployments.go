@@ -15,6 +15,10 @@ type Deployment struct {
 	Updated     time.Time
 }
 
+type DeploymentCounter interface {
+	CountFor(componentId string) (int, error)
+}
+
 type DeploymentUpdater interface {
 	SetImage(componentId, platformId, imageRef string) (*Deployment, error)
 }
@@ -25,6 +29,7 @@ type DeploymentLister interface {
 
 type DeploymentStore interface {
 	DeploymentLister
+	DeploymentCounter
 	DeploymentUpdater
 }
 
@@ -34,6 +39,17 @@ type deploymentStore struct {
 
 func NewDeploymentStore(db *sql.DB) DeploymentStore {
 	return &deploymentStore{db}
+}
+
+func (ds *deploymentStore) CountFor(componentId string) (int, error) {
+	row := ds.DB.QueryRow(`SELECT COUNT(*) FROM dependencies WHERE id = $1`, componentId)
+
+	var i int
+	if err := row.Scan(&i); err != nil {
+		return -1, err
+	}
+
+	return i, nil
 }
 
 func (ds *deploymentStore) ListForEnv(componentId, envId string) ([]Deployment, error) {

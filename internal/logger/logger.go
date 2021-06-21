@@ -43,6 +43,11 @@ func WithPrefix(prefix string, l logLevel) Logger {
 	return &basic{l, fmt.Sprintf("%s%s %s %s\n", prefix, "%s", "%s", "%s")}
 }
 
+func (l *basic) Level(level logLevel) *basic {
+	l.level = level
+	return l
+}
+
 func (l *basic) Pattern(p string) {
 	l.pattern = p
 }

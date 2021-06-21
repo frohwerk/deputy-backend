@@ -1,6 +1,7 @@
 package test
 
 import (
+	"database/sql"
 	"fmt"
 	"testing"
 
@@ -9,7 +10,8 @@ import (
 )
 
 func TestStuff(t *testing.T) {
-	err := CleanDatabase()
+	db := DB()
+	err := Clean(db)
 	if assert.NoError(t, err) {
 		t.Log("INSERTs ok")
 	} else {
@@ -17,7 +19,7 @@ func TestStuff(t *testing.T) {
 	}
 }
 
-func CleanDatabase() error {
+func Clean(db *sql.DB) error {
 	statements := []string{
 		`DELETE FROM envs`,
 		`DELETE FROM platforms`,
@@ -45,7 +47,7 @@ func CleanDatabase() error {
 	}
 
 	for _, statement := range statements {
-		_, err := DB().Exec(statement)
+		_, err := db.Exec(statement)
 		if err != nil {
 			fmt.Printf("statement execution failed:\n%s\n%s\n", statement, err)
 			return err
