@@ -11,7 +11,8 @@ type StatusError struct {
 }
 
 type ErrorResponse struct {
-	Message string `json:"message"`
+	Id      *string `json:"id,omitempty"`
+	Message string  `json:"message"`
 }
 
 func BadRequest(m string, values ...interface{}) StatusError {
@@ -29,5 +30,5 @@ func WriteErrorResponse(rw http.ResponseWriter, err error) {
 	default:
 		rw.WriteHeader(http.StatusInternalServerError)
 	}
-	WriteJsonResponse(rw, ErrorResponse{fmt.Sprintf("%s", err)})
+	WriteJsonResponse(rw, ErrorResponse{Message: fmt.Sprintf("%s", err)})
 }

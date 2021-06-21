@@ -8,9 +8,15 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/frohwerk/deputy-backend/internal/util"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
 	"github.com/go-chi/chi"
 )
+
+type marker struct {
+	Id      string `json:"id,omitempty"`
+	Message string `json:"message,omitempty"`
+}
 
 type store interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -48,6 +54,18 @@ func (h *componentHandler) PatchDependencies(rw http.ResponseWriter, r *http.Req
 
 	fmt.Printf("PATCH /api/components/%s/dependencies\n", id)
 	fmt.Printf("%s\n", deps)
+	for _, dependent := range deps.Additions {
+		deps, err := h.findAll(dependent)
+		if err != nil {
+			httputil.WriteErrorResponse(rw, err)
+			return
+		}
+		if deps.Contains(id) {
+			rw.WriteHeader(http.StatusBadRequest)
+			httputil.WriteJsonResponse(rw, &marker{Id: dependent, Message: "circular dependency"})
+			return
+		}
+	}
 
 	result, err := h.updateDependencies(r.Context(), id, deps)
 	if err != nil {
@@ -82,20 +100,51 @@ func (h *componentHandler) getDependencies(ctx context.Context, id string) ([]co
 	return result, nil
 }
 
+func (h *componentHandler) findAll(id string) (util.Set, error) {
+	result := make(util.Set)
+
+	pending := []string{id}
+
+	fmt.Println("Searching dependencies for", id)
+	for len(pending) > 0 {
+		id, pending = pending[0], pending[1:]
+		rows, err := h.db.Query(`SELECT depends_on FROM dependencies WHERE id = $1`, id)
+		if err != nil {
+			return nil, err
+		}
+
+		for rows.Next() {
+			var dependent string
+			err := rows.Scan(&dependent)
+			if err != nil {
+				return nil, err
+			}
+
+			fmt.Println("Found dependency:", dependent)
+
+			if !result.Contains(dependent) {
+				result.Put(dependent)
+				fmt.Println("Queueing dependency lookup for", dependent)
+				pending = append(pending, dependent)
+			}
+		}
+	}
+
+	return result, nil
+}
+
 func (h *componentHandler) updateDependencies(ctx context.Context, id string, deps *dependencies) ([]component, error) {
 	tx, err := h.db.BeginTx(ctx, &sql.TxOptions{})
 
 	if err != nil {
-		rollback(tx)
-		return nil, err
+		return rollback(tx, err)
 	}
 
 	for _, addition := range deps.Additions {
 		fmt.Printf("INSERT INTO dependencies (id, depends_on) VALUES ('%s', '%s') ON CONFLICT DO NOTHING\n", id, addition)
 		_, err := tx.ExecContext(ctx, `INSERT INTO dependencies (id, depends_on) VALUES ($1, $2) ON CONFLICT DO NOTHING`, id, addition)
 		if err != nil {
-			rollback(tx)
-			return nil, err
+			return rollback(tx, err)
 		}
 	}
 
@@ -103,8 +152,7 @@ func (h *componentHandler) updateDependencies(ctx context.Context, id string, de
 		fmt.Printf("DELETE FROM dependencies WHERE id = '%s' AND depends_on = '%s'\n", id, removal)
 		_, err := tx.ExecContext(ctx, `DELETE FROM dependencies WHERE id = $1 AND depends_on = $2`, id, removal)
 		if err != nil {
-			rollback(tx)
-			return nil, err
+			return rollback(tx, err)
 		}
 	}
 
@@ -113,9 +161,10 @@ func (h *componentHandler) updateDependencies(ctx context.Context, id string, de
 	return h.getDependencies(ctx, id)
 }
 
-func rollback(tx *sql.Tx) {
+func rollback(tx *sql.Tx, cause error) ([]component, error) {
 	err := tx.Rollback()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error during transaction rollback: %s\n", err)
 	}
+	return nil, cause
 }

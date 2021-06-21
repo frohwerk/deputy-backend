@@ -84,11 +84,11 @@ func (m *matcher) findByContent(fs fs.FileSlice) ([]database.File, error) {
 	sort.Sort(fs)
 	result := []database.File{}
 	strength := 0
-	scanned := make(set)
+	scanned := make(util.Set)
 	cb := &util.ControlBreak{}
 	for i, f := range fs {
 		if cb.IsBreak(f.Path()) {
-			scanned.clear()
+			scanned.Clear()
 		}
 		// Match using file name and digest
 		archives, err := m.archiveStore.FindByContent(&database.File{Name: f.Name, Digest: f.Digest})
@@ -99,7 +99,7 @@ func (m *matcher) findByContent(fs fs.FileSlice) ([]database.File, error) {
 		// Match using archive file contents
 	archiveloop:
 		for _, archive := range archives {
-			if scanned.contains(archive.Id) {
+			if scanned.Contains(archive.Id) {
 				continue archiveloop
 			}
 			sort.Sort(archive.Files)
@@ -118,7 +118,7 @@ func (m *matcher) findByContent(fs fs.FileSlice) ([]database.File, error) {
 					fallthrough
 				case archive.Files[j].Digest != fs[k].Digest:
 					fmt.Printf(">>>> Unmatched file: %s from archive '%s' not found in image\n", name, archive.File.Name)
-					scanned.put(archive.Id)
+					scanned.Put(archive.Id)
 					continue archiveloop
 				default:
 					fmt.Printf("Found file %s at path %s\n", archive.Files[j].Name, path)
@@ -129,7 +129,7 @@ func (m *matcher) findByContent(fs fs.FileSlice) ([]database.File, error) {
 			}
 			if matches == len(archive.Files) {
 				fmt.Printf("Found all files, the archive '%s' is a match\n", archive.Id)
-				scanned.put(archive.Id)
+				scanned.Put(archive.Id)
 				if matches > strength {
 					strength, matches = matches, 0
 					result = []database.File{archive.File}
