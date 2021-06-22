@@ -114,16 +114,8 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		search := func(id string) ([]string, error) {
-			v, err := dependencies.Direct(id)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-
-		if plan, err := magic(source, search); assert.NoError(t, err) {
+		m := &magician{dependencies}
+		if plan, err := m.magic(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})
@@ -134,16 +126,8 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		search := func(id string) ([]string, error) {
-			v, err := dependencies.Direct(id)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-
-		if plan, err := magic(source, search); assert.NoError(t, err) {
+		m := &magician{dependencies}
+		if plan, err := m.magic(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})
@@ -154,15 +138,14 @@ type magician struct {
 	dependencies.Lookup
 }
 
-func magic(source rollout.PatchList, search func(id string) ([]string, error)) (*theplan, error) {
-	plan := &theplan{}
+func (m *magician) magic(source rollout.PatchList) (*theplan, error) {
+	plan := &theplan{rollout.PatchList{}}
 	Log.Debug("input: %s", source)
 	for n := 0; len(source) > 0 && n < 10; n++ {
 		Log.Debug("--- Slot #%v ----------------------------------------------------------------------", n)
-		plan.addSlot()
 		for i := 0; i < len(source); {
 			c := source[i]
-			deps, err := search(c.ComponentId)
+			deps, err := m.Direct(c.ComponentId)
 			if err != nil {
 				return nil, err
 			}
@@ -178,29 +161,28 @@ func magic(source rollout.PatchList, search func(id string) ([]string, error)) (
 		}
 	}
 
-	// sort dependencies within a slot
-	for n := 1; n < len(plan.slots); n++ {
-		slot := plan.slots[n]
-		Log.Debug("checking slot #%v for internal dependencies: %s", n, slot)
-		for i := 0; i < len(slot); i++ {
-			j := i
-			c := slot[i]
-			deps, err := search(c.ComponentId)
-			if err != nil {
-				return nil, err
-			}
-			for _, dep := range deps {
-				k := slot.Index(dep)
-				Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
-				if k > -1 && k < j {
-					Log.Trace("swaping patches because of dependency")
-					Log.Trace("before swap: [ %s ]", slot)
-					Log.Trace("after swap:  [ %s ]", slot)
-					slot[j], slot[k], j = slot[k], slot[j], k
-				}
-			}
-		}
-	}
+	// // sort dependencies within a slot
+	// for n := 1; n < len(plan.things); n++ {
+	// 	Log.Debug("checking slot #%v for internal dependencies: %s", n, plan.things)
+	// 	for i := 0; i < len(plan.things); i++ {
+	// 		j := i
+	// 		c := slot[i]
+	// 		deps, err := m.Direct(c.ComponentId)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		for _, dep := range deps {
+	// 			k := slot.Index(dep)
+	// 			Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
+	// 			if k > -1 && k < j {
+	// 				Log.Trace("swaping patches because of dependency")
+	// 				Log.Trace("before swap: [ %s ]", slot)
+	// 				Log.Trace("after swap:  [ %s ]", slot)
+	// 				slot[j], slot[k], j = slot[k], slot[j], k
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	Log.Debug("source: [ %s ]", source)
 
@@ -208,32 +190,21 @@ func magic(source rollout.PatchList, search func(id string) ([]string, error)) (
 }
 
 type theplan struct {
-	slots []rollout.PatchList
-}
-
-func (plan *theplan) addSlot() {
-	plan.slots = append(plan.slots, rollout.PatchList{})
+	queue rollout.PatchList
 }
 
 func (plan *theplan) AddPatch(p kubernetes.DeploymentPatch) {
-	n := len(plan.slots) - 1
-	plan.slots[n] = append(plan.slots[n], p)
+	plan.queue = append(plan.queue, p)
 }
 
 func (plan *theplan) Satisfies(ids []string) bool {
-	n := len(plan.slots) - 1
 	Log.Trace("searching plan %s for dependencies %s", plan, ids)
-	for i, slot := range plan.slots {
-		if i == n {
-			return len(ids) == 0
+	for _, patch := range plan.queue {
+		if len(ids) == 0 {
+			return true
 		}
-		for _, comp := range slot {
-			if comp.ComponentId == ids[0] {
-				ids = ids[1:]
-			}
-			if len(ids) == 0 {
-				return true
-			}
+		if patch.ComponentId == ids[0] {
+			ids = ids[1:]
 		}
 	}
 	return len(ids) == 0
@@ -241,10 +212,10 @@ func (plan *theplan) Satisfies(ids []string) bool {
 
 func (plan *theplan) String() string {
 	sb := strings.Builder{}
-	limit := len(plan.slots) - 1
-	for i, slot := range plan.slots {
+	limit := len(plan.queue) - 1
+	for i, patch := range plan.queue {
 		sb.WriteString("[")
-		sb.WriteString(slot.String())
+		sb.WriteString(patch.Name())
 		sb.WriteString("]")
 		if i < limit {
 			sb.WriteString(" -> ")
