@@ -138,7 +138,7 @@ func CreateImagePatch(container, imageRef string) DeploymentPatch {
 	}
 }
 
-func (p DeploymentPatch) Name() string {
+func (p DeploymentPatch) DisplayName() string {
 	switch {
 	case p.ComponentName != "":
 		return p.ComponentName

@@ -28,7 +28,6 @@ func (s *strategy) CreatePlan(source PatchList) (PatchList, error) {
 				Log.Debug("dependencies for component <%s> are satisfied. moving to target slot #%v", c.ComponentId, n)
 				plan.queue = append(plan.queue, c)
 				source = append(source[:i], source[i+1:]...)
-				Log.Trace("source: [%s] ||| plan: [%s]", source, plan)
 			} else {
 				i++
 			}
@@ -73,7 +72,7 @@ func (plan *builder) String() string {
 	sb := strings.Builder{}
 	limit := len(plan.queue) - 1
 	for i, patch := range plan.queue {
-		sb.WriteString(patch.Name())
+		sb.WriteString(patch.DisplayName())
 		if i < limit {
 			sb.WriteString(" -> ")
 		}

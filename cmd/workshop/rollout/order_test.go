@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	rollout.Log = Log
+}
+
 type memoryStore map[string][]string
 
 func (r *memoryStore) Direct(id string) ([]string, error) {
@@ -17,10 +21,6 @@ func (r *memoryStore) Direct(id string) ([]string, error) {
 		return deps, nil
 	}
 	return []string{}, nil
-}
-
-func init() {
-	rollout.Log = Log
 }
 
 func TestOrdering(t *testing.T) {
@@ -203,7 +203,7 @@ func (plan *theplan) String() string {
 	limit := len(plan.queue) - 1
 	for i, patch := range plan.queue {
 		sb.WriteString("[")
-		sb.WriteString(patch.Name())
+		sb.WriteString(patch.DisplayName())
 		sb.WriteString("]")
 		if i < limit {
 			sb.WriteString(" -> ")
