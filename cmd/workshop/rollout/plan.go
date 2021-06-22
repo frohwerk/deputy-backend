@@ -44,23 +44,9 @@ func (plan *builder) dependencies(id string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	Log.Trace("all dependencies for %s: %s", id, deps)
-	for i := 0; i < len(deps); {
-		Log.Trace("searching source [%s] for dependencies %s", plan.source, deps)
-		if !plan.source.Contains(deps[i]) {
-			Log.Trace("plan.source does not contain %s", deps[i])
-			if last := len(deps) - 1; last > 0 {
-				deps[i], deps[last] = deps[last], deps[i]
-				deps = deps[:last]
-			} else {
-				return []string{}, nil
-			}
-		} else {
-			i++
-		}
-	}
-
-	Log.Trace("filtered dependencies for %s: %s", id, deps)
+	Log.Info("all dependencies for %s: %s", id, deps)
+	deps = filter(deps, func(v string) bool { return plan.source.Contains(v) })
+	Log.Info("filtered dependencies for %s: %s", id, deps)
 	return deps, err
 }
 
