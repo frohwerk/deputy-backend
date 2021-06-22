@@ -44,9 +44,9 @@ func (plan *builder) dependencies(id string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	Log.Info("all dependencies for %s: %s", id, deps)
+	Log.Trace("all dependencies for %s: %s", id, deps)
 	deps = filter(deps, func(v string) bool { return plan.source.Contains(v) })
-	Log.Info("filtered dependencies for %s: %s", id, deps)
+	Log.Trace("filtered dependencies for %s: %s", id, deps)
 	return deps, err
 }
 

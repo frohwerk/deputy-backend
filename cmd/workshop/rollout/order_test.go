@@ -1,7 +1,6 @@
 package rollout_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/frohwerk/deputy-backend/cmd/workshop/dependencies"
@@ -55,87 +54,47 @@ func TestOrdering(t *testing.T) {
 		}
 	})
 
-	standardTest := func(t *testing.T, patches rollout.PatchList, dependencies dependencies.Lookup) {
-		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			check := result{plan}
-			Log.Debug("plan: %s", plan)
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
+	standardTest := func(t *testing.T, cases []rollout.PatchList, dependencies dependencies.Lookup) {
+		c := make([]rollout.PatchList, len(cases))
+		copy(c, cases)
+		for _, patches := range c {
+			t.Run(patches.String(), func(t *testing.T) {
+				plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
+				if assert.NoError(t, err, "creating rollout plan failed") {
+					check := result{plan}
+					Log.Debug("plan: %s", plan)
+					check.Order(t, "middleware", "frontend")
+					check.Order(t, "service-x", "middleware")
+					check.Order(t, "service-y", "middleware")
+				}
+			})
 		}
 	}
 
-	t.Run("second test case", func(t *testing.T) {
-		patches := createPatches("middleware", "service-x", "service-y", "frontend")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
-			"middleware": {"service-x", "service-y"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("third test case", func(t *testing.T) {
-		patches := createPatches("service-x", "middleware", "service-y", "frontend")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
-			"middleware": {"service-x", "service-y"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("forth test case", func(t *testing.T) {
-		patches := createPatches("service-x", "frontend", "middleware", "service-y")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
-			"middleware": {"service-x", "service-y"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("stuff #1", func(t *testing.T) {
-		patches := createPatches("service-x", "frontend", "middleware", "service-y")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
-			"middleware": {"service-x", "service-y"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("stuff #2", func(t *testing.T) {
-		patches := createPatches("service-x", "service-y", "frontend", "middleware")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
-			"middleware": {"service-x", "service-y"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("stuff #3", func(t *testing.T) {
-		patches := createPatches("service-x", "service-y", "frontend", "middleware")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware", "service-b"},
-			"middleware": {"service-x", "service-y", "service-z"},
-			"service-a":  {"service-b"},
-		})
-		standardTest(t, patches, dependencies)
-	})
-
-	t.Run("stuff #4", func(t *testing.T) {
-		patches := createPatches("service-x", "service-y", "frontend", "middleware")
-		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware", "service-b"},
-			"middleware": {"service-x", "service-y", "service-z"},
-			"service-a":  {"service-b"},
-		})
-		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			check := result{plan}
-			Log.Debug("plan: %s", plan)
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
+	cases := func() []rollout.PatchList {
+		return []rollout.PatchList{
+			createPatches("middleware", "service-x", "service-y", "frontend"),
+			createPatches("service-x", "middleware", "service-y", "frontend"),
+			createPatches("service-x", "frontend", "middleware", "service-y"),
+			createPatches("service-x", "service-y", "frontend", "middleware"),
 		}
+	}
+
+	t.Run("standard cases", func(t *testing.T) {
+		dependencies := createLookup(memoryStore{
+			"frontend":   {"middleware"},
+			"middleware": {"service-x", "service-y"},
+		})
+		standardTest(t, cases(), dependencies)
+	})
+
+	t.Run("unused dependencies", func(t *testing.T) {
+		dependencies := createLookup(memoryStore{
+			"frontend":   {"middleware", "service-b"},
+			"middleware": {"service-x", "service-y", "service-z"},
+			"service-a":  {"service-b"},
+		})
+		standardTest(t, cases(), dependencies)
 	})
 
 	t.Run("circular dependency #1", func(t *testing.T) {
@@ -161,96 +120,6 @@ func TestOrdering(t *testing.T) {
 		assert.Error(t, err, "should detect circular dependency c <-> d")
 	})
 
-}
-
-type magician struct {
-	dependencies.Lookup
-}
-
-func (m *magician) magic(source rollout.PatchList) (*theplan, error) {
-	plan := &theplan{rollout.PatchList{}}
-	Log.Debug("input: %s", source)
-	for n := 0; len(source) > 0 && n < 10; n++ {
-		Log.Debug("--- Slot #%v ----------------------------------------------------------------------", n)
-		for i := 0; i < len(source); {
-			c := source[i]
-			deps, err := m.Direct(c.ComponentId)
-			if err != nil {
-				return nil, err
-			}
-			Log.Debug("checking component <%s> with dependencies %s for slot #%v", c.ComponentId, deps, n)
-			if plan.Satisfies(deps) {
-				Log.Debug("dependencies for component <%s> are satisfied. moving to target slot #%v", c.ComponentId, n)
-				plan.AddPatch(c)
-				source = append(source[:i], source[i+1:]...)
-				Log.Trace("source: [%s] ||| plan: %s", source, plan)
-			} else {
-				i++
-			}
-		}
-	}
-
-	// // sort dependencies within a slot
-	// for n := 1; n < len(plan.things); n++ {
-	// 	Log.Debug("checking slot #%v for internal dependencies: %s", n, plan.things)
-	// 	for i := 0; i < len(plan.things); i++ {
-	// 		j := i
-	// 		c := slot[i]
-	// 		deps, err := m.Direct(c.ComponentId)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		for _, dep := range deps {
-	// 			k := slot.Index(dep)
-	// 			Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
-	// 			if k > -1 && k < j {
-	// 				Log.Trace("swaping patches because of dependency")
-	// 				Log.Trace("before swap: [ %s ]", slot)
-	// 				Log.Trace("after swap:  [ %s ]", slot)
-	// 				slot[j], slot[k], j = slot[k], slot[j], k
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	Log.Debug("source: [ %s ]", source)
-
-	return plan, nil
-}
-
-type theplan struct {
-	queue rollout.PatchList
-}
-
-func (plan *theplan) AddPatch(p kubernetes.DeploymentPatch) {
-	plan.queue = append(plan.queue, p)
-}
-
-func (plan *theplan) Satisfies(ids []string) bool {
-	Log.Trace("searching plan %s for dependencies %s", plan, ids)
-	for _, patch := range plan.queue {
-		if len(ids) == 0 {
-			return true
-		}
-		if patch.ComponentId == ids[0] {
-			ids = ids[1:]
-		}
-	}
-	return len(ids) == 0
-}
-
-func (plan *theplan) String() string {
-	sb := strings.Builder{}
-	limit := len(plan.queue) - 1
-	for i, patch := range plan.queue {
-		sb.WriteString("[")
-		sb.WriteString(patch.DisplayName())
-		sb.WriteString("]")
-		if i < limit {
-			sb.WriteString(" -> ")
-		}
-	}
-	return sb.String()
 }
 
 type result struct {
