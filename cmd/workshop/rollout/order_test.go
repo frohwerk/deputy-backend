@@ -114,8 +114,9 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		m := &magician{dependencies}
-		if plan, err := m.magic(source); assert.NoError(t, err) {
+
+		strategy := rollout.Strategy(dependencies)
+		if plan, err := strategy.CreatePlan(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})
@@ -126,8 +127,8 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		m := &magician{dependencies}
-		if plan, err := m.magic(source); assert.NoError(t, err) {
+		strategy := rollout.Strategy(dependencies)
+		if plan, err := strategy.CreatePlan(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})
