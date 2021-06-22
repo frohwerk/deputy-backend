@@ -159,7 +159,7 @@ func magic(source rollout.PatchList, search func(id string) ([]string, error)) (
 	Log.Debug("input: %s", source)
 	for n := 0; len(source) > 0 && n < 10; n++ {
 		Log.Debug("--- Slot #%v ----------------------------------------------------------------------", n)
-		plan.AddSlot()
+		plan.addSlot()
 		for i := 0; i < len(source); {
 			c := source[i]
 			deps, err := search(c.ComponentId)
@@ -211,7 +211,7 @@ type theplan struct {
 	slots []rollout.PatchList
 }
 
-func (plan *theplan) AddSlot() {
+func (plan *theplan) addSlot() {
 	plan.slots = append(plan.slots, rollout.PatchList{})
 }
 
