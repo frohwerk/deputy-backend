@@ -114,9 +114,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		strategy := rollout.Strategy(dependencies)
-		if plan, err := strategy.CreatePlan(source); assert.NoError(t, err) {
+		if plan, err := rollout.Strategy(dependencies).CreatePlan(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})
@@ -127,8 +125,18 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		strategy := rollout.Strategy(dependencies)
-		if plan, err := strategy.CreatePlan(source); assert.NoError(t, err) {
+		if plan, err := rollout.Strategy(dependencies).CreatePlan(source); assert.NoError(t, err) {
+			Log.Debug("plan: [ %s ]", plan)
+		}
+	})
+
+	t.Run("stuff #3", func(t *testing.T) {
+		source := createPatches("service-x", "service-y", "frontend", "middleware")
+		dependencies := createLookup(memoryStore{
+			"frontend":   {"middleware"},
+			"middleware": {"service-x", "service-y", "service-z"},
+		})
+		if plan, err := rollout.Strategy(dependencies).CreatePlan(source); assert.NoError(t, err) {
 			Log.Debug("plan: [ %s ]", plan)
 		}
 	})

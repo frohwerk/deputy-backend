@@ -35,3 +35,16 @@ func (patches PatchList) String() string {
 	}
 	return sb.String()
 }
+
+func (patches PatchList) Contains(ids ...string) bool {
+	Log.Trace("searching patches [%s] for %s", patches, ids)
+	for _, patch := range patches {
+		if len(ids) == 0 {
+			return true
+		}
+		if patch.ComponentId == ids[0] {
+			ids = ids[1:]
+		}
+	}
+	return len(ids) == 0
+}
