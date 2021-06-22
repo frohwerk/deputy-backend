@@ -114,10 +114,51 @@ func TestOrdering(t *testing.T) {
 	t.Run("stuff #3", func(t *testing.T) {
 		patches := createPatches("service-x", "service-y", "frontend", "middleware")
 		dependencies := createLookup(memoryStore{
-			"frontend":   {"middleware"},
+			"frontend":   {"middleware", "service-b"},
 			"middleware": {"service-x", "service-y", "service-z"},
+			"service-a":  {"service-b"},
 		})
 		standardTest(t, patches, dependencies)
+	})
+
+	t.Run("stuff #4", func(t *testing.T) {
+		patches := createPatches("service-x", "service-y", "frontend", "middleware")
+		dependencies := createLookup(memoryStore{
+			"frontend":   {"middleware", "service-b"},
+			"middleware": {"service-x", "service-y", "service-z"},
+			"service-a":  {"service-b"},
+		})
+		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		if assert.NoError(t, err, "creating rollout plan failed") {
+			check := result{plan}
+			Log.Debug("plan: %s", plan)
+			check.Order(t, "middleware", "frontend")
+			check.Order(t, "service-x", "middleware")
+			check.Order(t, "service-y", "middleware")
+		}
+	})
+
+	t.Run("circular dependency #1", func(t *testing.T) {
+		patches := createPatches("a", "b", "c")
+		dependencies := createLookup(memoryStore{
+			"a": {"b"},
+			"b": {"c"},
+			"c": {"a"},
+		})
+		_, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		assert.Error(t, err, "should detect circular dependency a -> b -> c -> a")
+	})
+
+	t.Run("circular dependency #2", func(t *testing.T) {
+		patches := createPatches("a", "b", "c", "d")
+		dependencies := createLookup(memoryStore{
+			"a": {"b"},
+			"b": {"c", "d"},
+			"c": {"d"},
+			"d": {"c"},
+		})
+		_, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		assert.Error(t, err, "should detect circular dependency c <-> d")
 	})
 
 }
