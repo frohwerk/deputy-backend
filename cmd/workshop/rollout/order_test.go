@@ -55,21 +55,24 @@ func TestOrdering(t *testing.T) {
 		}
 	})
 
+	standardTest := func(t *testing.T, patches rollout.PatchList, dependencies dependencies.Lookup) {
+		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		if assert.NoError(t, err, "creating rollout plan failed") {
+			check := result{plan}
+			Log.Debug("plan: %s", plan)
+			check.Order(t, "middleware", "frontend")
+			check.Order(t, "service-x", "middleware")
+			check.Order(t, "service-y", "middleware")
+		}
+	}
+
 	t.Run("second test case", func(t *testing.T) {
 		patches := createPatches("middleware", "service-x", "service-y", "frontend")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			Log.Debug("plan: %s", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("third test case", func(t *testing.T) {
@@ -78,15 +81,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			Log.Debug("plan: %s", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("forth test case", func(t *testing.T) {
@@ -95,13 +90,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		if plan, err := rollout.Strategy(dependencies).CreatePlan(patches); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("stuff #1", func(t *testing.T) {
@@ -110,9 +99,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		if plan, err := rollout.Strategy(dependencies).CreatePlan(patches); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("stuff #2", func(t *testing.T) {
@@ -121,20 +108,16 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-		if plan, err := rollout.Strategy(dependencies).CreatePlan(patches); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("stuff #3", func(t *testing.T) {
-		source := createPatches("service-x", "service-y", "frontend", "middleware")
+		patches := createPatches("service-x", "service-y", "frontend", "middleware")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y", "service-z"},
 		})
-		if plan, err := rollout.Strategy(dependencies).CreatePlan(source); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 }
