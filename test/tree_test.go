@@ -59,9 +59,11 @@ func TestTree(t *testing.T) {
 		if root, err := tree.Builder(lookup).CreateTree("top[0]"); assert.NoError(t, err) {
 			// inspect initial result
 			assert.Equal(t, "top[0]", root.Value)
+			assert.Equal(t, 2, root.Depth)
 			assert.Len(t, root.Dependencies, 1)
 			mid := root.Dependencies
 			assert.Equal(t, "mid[0]", mid[0].Value)
+			assert.Equal(t, 1, mid[0].Depth)
 			assert.Len(t, mid[0].Dependencies, 2)
 			bot := mid[0].Dependencies
 			assert.Equal(t, "bot[1]", bot[0].Value)

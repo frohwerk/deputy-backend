@@ -4,39 +4,56 @@ import (
 	"fmt"
 
 	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/util"
 )
 
 var Log logger.Logger = logger.Noop
 
 var MaxDepth = 20
 
-type node struct {
+type Node struct {
 	Value        string
-	Dependencies []*node
+	Depth        int
+	Dependencies []*Node
 }
 
 type builder struct {
-	depth  int
-	cache  map[string]*node
+	cache  map[string]*Node
 	lookup Lookup
 }
+
+type build struct {
+	*builder
+	recursion int
+}
+
+type NodeList []*Node
 
 type Lookup func(id string) ([]string, error)
 
 // Tree builder with caching support
 func Builder(lookup Lookup) *builder {
-	return &builder{cache: map[string]*node{}, lookup: lookup}
+	return &builder{cache: map[string]*Node{}, lookup: lookup}
 }
 
-func Create(rootId string, lookup Lookup) (*node, error) {
+func Create(rootId string, lookup Lookup) (*Node, error) {
 	return Builder(lookup).CreateTree(rootId)
 }
 
-func (b *builder) CreateTree(rootId string) (*node, error) {
-	b.depth++
-	defer func() { b.depth-- }()
+func (b *builder) CreateTree(rootId string) (*Node, error) {
+	t := &build{builder: b, recursion: 0}
+	root, err := t.createTree(rootId)
+	if t.recursion != 0 {
+		Log.Debug("recursion counter should be 0, shouldn't it? But it is %v", t.recursion)
+	}
+	return root, err
+}
 
-	if b.depth > MaxDepth {
+func (b *build) createTree(rootId string) (*Node, error) {
+	b.recursion++
+	defer func() { b.recursion-- }()
+
+	if b.recursion > MaxDepth {
 		return nil, fmt.Errorf("too many recursions, there might be a circular relationship or the tree is too deep. if you are sure it is not, then you can increase tree.MaxDepth")
 	}
 
@@ -44,61 +61,73 @@ func (b *builder) CreateTree(rootId string) (*node, error) {
 		return t, nil
 	}
 
-	Log.Debug("Looking up dependencies for id: %s", rootId)
+	Log.Trace("Looking up dependencies for id: %s", rootId)
 	deps, err := b.lookup(rootId)
 	if err != nil {
 		return nil, err
 	}
 
-	root := node{Value: rootId, Dependencies: []*node{}}
+	root := Node{Value: rootId, Depth: 0, Dependencies: []*Node{}}
 	b.cache[rootId] = &root
 
+	depth := 0
 	for _, dep := range deps {
-		node, err := b.CreateTree(dep)
+		node, err := b.createTree(dep)
 		if err != nil {
 			return nil, err
 		}
+		depth = util.MaxInt(depth, node.Depth)
 		root.Dependencies = append(root.Dependencies, node)
+	}
+
+	if len(deps) > 0 {
+		root.Depth = depth + 1
 	}
 
 	return &root, nil
 }
 
-// Search all nodes matching the match function
-func (t *node) Search(match func(*node) bool) []*node {
-	set := map[string]*node{}
+type walker struct {
+	seen map[string]*Node
+}
 
-	if t == nil {
-		return nil
+func (n *Node) Children() []*Node {
+	if n.Leaf() {
+		return []*Node{}
 	}
 
-	if match(t) {
-		set[t.Value] = t
+	w := &walker{seen: map[string]*Node{}}
+	for _, n := range n.Dependencies {
+		w.collectUnique(n)
 	}
 
-	for _, dep := range t.Dependencies {
-		matches := dep.Search(match)
-		for _, item := range matches {
-			set[item.Value] = item
+	result := []*Node{}
+	for _, v := range w.seen {
+		result = append(result, v)
+	}
+
+	return result
+}
+
+func (w *walker) collectUnique(n *Node) {
+	switch {
+	case n == nil:
+		return
+	case n.Leaf():
+		w.seen[n.Value] = n
+	default:
+		for _, dependent := range n.Dependencies {
+			w.collectUnique(dependent)
 		}
 	}
-
-	i := 0
-	res := make([]*node, len(set))
-	for _, v := range set {
-		res[i] = v
-		i++
-	}
-
-	return res
 }
 
 // Remove all nodes without subtrees and return these nodes. If the node is ignored, if you want to know if the node itself is a leaf use the Leaf() method
-func (n *node) Trim() []node {
-	t := &trimmer{removed: map[string]node{}}
+func (n *Node) Trim() []Node {
+	t := &trimmer{processed: map[string]interface{}{}, removed: map[string]Node{}}
 	t.trim(n)
 
-	i, res := 0, make([]node, len(t.removed))
+	i, res := 0, make([]Node, len(t.removed))
 	for _, n := range t.removed {
 		res[i] = n
 		i++
@@ -108,37 +137,63 @@ func (n *node) Trim() []node {
 }
 
 type trimmer struct {
-	removed map[string]node
+	processed map[string]interface{}
+	removed   map[string]Node
 }
 
-func (t *trimmer) trim(n *node) {
-	if n == nil {
+func (t *trimmer) trim(n *Node) {
+	if n == nil || n.Leaf() {
 		return
 	}
 
-	Log.Debug("trim: %s", n.Value)
+	Log.Trace("t.processed:")
+	for k := range t.processed {
+		Log.Trace("- %s", k)
+	}
+	Log.Trace("trim: %s", n.Value)
+	for _, n := range n.Dependencies {
+		Log.Trace("------> %s", n.Value)
+	}
 	for i := 0; i < len(n.Dependencies); {
 		d := n.Dependencies[i]
-		if d.Leaf() {
+		if _, ok := t.processed[d.Value]; ok {
+			Log.Trace("%s already processed: %v", d.Value, ok)
+			i++
+		} else if d.Leaf() {
 			t.removed[d.Value] = *slice(n, i)
 		} else {
-			i++
 			t.trim(d)
+			i++
 		}
 	}
+
+	n.Depth--
+	Log.Trace("t.processed <- %s", n.Value)
+	t.processed[n.Value] = nil
 }
 
-func (n *node) Leaf() bool {
+func (n *Node) Leaf() bool {
 	return n == nil || len(n.Dependencies) == 0
 }
 
-func slice(n *node, i int) *node {
+func (n *Node) String() string {
+	return fmt.Sprintf("%s (%v nodes)", n.Value, n.Depth)
+}
+
+func slice(n *Node, i int) *Node {
 	v := n.Dependencies[i]
-	Log.Debug("slice: %s", v.Value)
+	Log.Trace("slice: %s", v.Value)
 	if i == len(n.Dependencies) {
 		n.Dependencies = n.Dependencies[:i]
 	} else {
 		n.Dependencies = append(n.Dependencies[:i], n.Dependencies[i+1:]...)
 	}
 	return v
+}
+
+func max(a, b int) int {
+	if a < b {
+		return b
+	}
+	return a
 }
