@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,23 +20,23 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-type byId []apps.Component
+var Log logger.Logger = logger.Noop
 
-func (s byId) Len() int {
-	return len(s)
-}
-
-func (s byId) Less(i, j int) bool {
-	return s[i].Id < s[j].Id
-}
-
-func (s byId) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+func init() {
+	logger.Default = logger.Basic(logger.LEVEL_DEBUG)
+	Log = logger.Default
 }
 
 func main() {
-	if len(os.Args) < 4 {
-		log.Fatalln("missing parameter: image reference")
+	switch len(os.Args) {
+	case 1:
+		Log.Fatal("missing parameter: application id")
+	case 2:
+		Log.Fatal("missing parameter: source unix time (or * for latest)")
+	case 3:
+		Log.Fatal("missing parameter: source environment id")
+	case 4:
+		Log.Fatal("missing parameter: target environment id")
 	}
 
 	appId := os.Args[1]
@@ -47,12 +46,12 @@ func main() {
 
 	before, err := parseTime(at)
 	if err != nil {
-		log.Fatalf("invalid parameter value 'at': %s", err)
+		Log.Fatal("invalid parameter value 'at': %s", err)
 	}
 
 	rollout.Log = logger.Basic(logger.LEVEL_TRACE)
 
-	fmt.Printf("Source time: %v\n", before)
+	Log.Info("Source time: %v", before)
 
 	db := database.Open()
 	defer db.Close()
@@ -64,48 +63,48 @@ func main() {
 
 	targetEnv, err := platforms.Environment(target)
 	if err != nil {
-		log.Fatalf("error reading target environment configuration: %s", err)
+		Log.Fatal("error reading target environment configuration: %s", err)
 	}
 
 	targetApp, err := appsRepo.CurrentView(appId, target)
 	if err != nil {
-		log.Fatalf("error reading target application: %s", err)
+		Log.Fatal("error reading target application: %s", err)
 	}
 
 	sourceApp, err := appsRepo.History(appId, source, &before)
 	if err != nil {
-		log.Fatalf("error reading source application: %s", err)
+		Log.Fatal("error reading source application: %s", err)
 	}
 
 	patches, err := createPatches(sourceApp.Components, targetApp.Components)
 	if err != nil {
-		log.Fatalf("error creating patches for target: %s", err)
+		Log.Fatal("error creating patches for target: %s", err)
 	}
 
 	sort.Slice(patches, func(i, j int) bool { return patches[i].ComponentId > patches[j].ComponentId })
-	fmt.Println("Patches before planing stage:", rollout.PatchList(patches))
+	Log.Debug("Patches before planing stage:", rollout.PatchList(patches))
 
-	plan, err := planner.Plan(patches)
+	plan, err := planner.CreatePlan(patches)
 	if err != nil {
-		log.Fatalf("error creating patches for target: %s", err)
+		Log.Fatal("error creating patches for target: %s", err)
 	}
 
 	if len(plan) > -2 {
-		fmt.Println("Rollout plan:", plan)
+		Log.Debug("Rollout plan: %s", plan)
 		return
 	}
 
-	fmt.Printf("Patching environment %s\n", target)
+	Log.Info("Patching environment %s", target)
 	for _, patch := range plan {
 		target, err := targetEnv.Platform(patch.PlatformName)
 		if err != nil {
-			log.Fatalf("error reading target platform: %v", err)
+			Log.Fatal("error reading target platform: %v", err)
 		}
 
 		// Maybe use context for timeout?
 		complete, err := target.Apply(&patch)
 		if err != nil {
-			log.Fatalf("error applying patch: %v", err)
+			Log.Fatal("error applying patch: %v", err)
 		}
 
 		// Wait for completion
@@ -114,7 +113,7 @@ func main() {
 
 	// TODO ./cmd/server/apps/get.go: Reuse apps view with history
 	// Input: app_id, at (timestamp), from_env, to_env
-	fmt.Println("TODO: add timeout for the whole thing")
+	Log.Debug("TODO: add timeout for the whole thing")
 	// For each component (determine a reasonable order!):
 	//
 }
@@ -131,7 +130,7 @@ func createKubernetesClient() (*kubernetes.Clientset, error) {
 	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
 	cadata, err := os.ReadFile(cafile)
 	if err != nil {
-		fmt.Printf("error reading cadata from %s: %s", cafile, err)
+		Log.Info("error reading cadata from %s: %s", cafile, err)
 		os.Exit(1)
 	}
 
@@ -155,14 +154,14 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 	sort.Sort(byId(source))
 	sort.Sort(byId(target))
 
-	fmt.Println("Components (source):")
+	Log.Debug("Components (source):")
 	for _, c := range source {
-		fmt.Printf("%s => %s\n", c.Name, c.Image)
+		Log.Debug("%s => %s", c.Name, c.Image)
 	}
 
-	fmt.Println("Components (target):")
+	Log.Debug("Components (target):")
 	for _, c := range target {
-		fmt.Printf("%s => %s\n", c.Name, c.Image)
+		Log.Debug("%s => %s", c.Name, c.Image)
 	}
 
 	//componentLoop:
@@ -174,8 +173,8 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 		case source.Platform != target.Platform:
 			return nil, fmt.Errorf("source and target must use the same platform (may use different environments)")
 		case source.Image == target.Image:
-			fmt.Println("TODO: Skip deployment if the image is the same!!!")
-			fmt.Printf("%v == %v\n", source.Image, target.Image)
+			Log.Warn("TODO: Skip deployment if the image is the same!!!")
+			Log.Debug("%v == %v", source.Image, target.Image)
 			// continue componentLoop
 		case source.Image == "":
 			return nil, fmt.Errorf("source has no image specified for component %s", source.Id)
@@ -198,33 +197,6 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 	return patches, nil
 }
 
-type helper struct {
-	order   int
-	patches []k8s.DeploymentPatch
-}
-
-func order(deployments database.DeploymentCounter, patches []k8s.DeploymentPatch) error {
-	deps := map[string]int{}
-	// result := map[int][]k8s.DeploymentPatch
-	for _, patch := range patches {
-		tbc := false
-		if _, ok := deps[patch.ComponentId]; ok {
-			tbc = true
-			continue
-		}
-		if tbc {
-			fmt.Println("this was not supposed to happen")
-		}
-		n, err := deployments.CountFor(patch.ComponentId)
-		if err != nil {
-			return err
-		}
-		deps[patch.ComponentId] = n
-	}
-
-	return nil
-}
-
 func parseTime(t string) (time.Time, error) {
 	switch t {
 	case "*":
@@ -232,4 +204,18 @@ func parseTime(t string) (time.Time, error) {
 	default:
 		return epoch.ParseTime(t)
 	}
+}
+
+type byId []apps.Component
+
+func (s byId) Len() int {
+	return len(s)
+}
+
+func (s byId) Less(i, j int) bool {
+	return s[i].Id < s[j].Id
+}
+
+func (s byId) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }

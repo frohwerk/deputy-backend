@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	rollout.Log = Log
+}
+
 type memoryStore map[string][]string
 
 func (r *memoryStore) Direct(id string) ([]string, error) {
@@ -17,10 +21,6 @@ func (r *memoryStore) Direct(id string) ([]string, error) {
 		return deps, nil
 	}
 	return []string{}, nil
-}
-
-func init() {
-	rollout.Log = Log
 }
 
 func TestOrdering(t *testing.T) {
@@ -45,17 +45,26 @@ func TestOrdering(t *testing.T) {
 			"d": {"f"},
 		})
 
-		plan, err := rollout.Strategy(dependencies).Plan(patches)
-		if err != nil {
-			t.Fatal("creating rollout plan failed:", err)
+		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		if assert.NoError(t, err, "creating rollout plan failed") {
+			Log.Debug("plan: %s", plan)
+			assert.Equal(t, "c", plan[0].ComponentId)
+			assert.Equal(t, "f", plan[1].ComponentId)
+			assert.Equal(t, "d", plan[2].ComponentId)
+			assert.Equal(t, "b", plan[3].ComponentId)
 		}
-
-		Log.Debug("final result: %s", plan)
-		assert.Equal(t, "c", plan[0].ComponentId)
-		assert.Equal(t, "f", plan[1].ComponentId)
-		assert.Equal(t, "d", plan[2].ComponentId)
-		assert.Equal(t, "b", plan[3].ComponentId)
 	})
+
+	standardTest := func(t *testing.T, patches rollout.PatchList, dependencies dependencies.Lookup) {
+		plan, err := rollout.Strategy(dependencies).CreatePlan(patches)
+		if assert.NoError(t, err, "creating rollout plan failed") {
+			check := result{plan}
+			Log.Debug("plan: %s", plan)
+			check.Order(t, "middleware", "frontend")
+			check.Order(t, "service-x", "middleware")
+			check.Order(t, "service-y", "middleware")
+		}
+	}
 
 	t.Run("second test case", func(t *testing.T) {
 		patches := createPatches("middleware", "service-x", "service-y", "frontend")
@@ -63,15 +72,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		plan, err := rollout.Strategy(dependencies).Plan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			Log.Debug("final result: %s", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("third test case", func(t *testing.T) {
@@ -80,15 +81,7 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		plan, err := rollout.Strategy(dependencies).Plan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			Log.Debug("final result: %s", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("forth test case", func(t *testing.T) {
@@ -97,55 +90,34 @@ func TestOrdering(t *testing.T) {
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		plan, err := rollout.Strategy(dependencies).Plan(patches)
-		if assert.NoError(t, err, "creating rollout plan failed") {
-			Log.Debug("final result: %s", plan)
-			check := result{plan}
-			check.Order(t, "middleware", "frontend")
-			check.Order(t, "service-x", "middleware")
-			check.Order(t, "service-y", "middleware")
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("stuff #1", func(t *testing.T) {
-		source := createPatches("service-x", "frontend", "middleware", "service-y")
+		patches := createPatches("service-x", "frontend", "middleware", "service-y")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
-
-		search := func(id string) ([]string, error) {
-			v, err := dependencies.Direct(id)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-
-		if plan, err := magic(source, search); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-		}
+		standardTest(t, patches, dependencies)
 	})
 
 	t.Run("stuff #2", func(t *testing.T) {
-		source := createPatches("service-x", "service-y", "frontend", "middleware")
+		patches := createPatches("service-x", "service-y", "frontend", "middleware")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
+		standardTest(t, patches, dependencies)
+	})
 
-		search := func(id string) ([]string, error) {
-			v, err := dependencies.Direct(id)
-			if err != nil {
-				return nil, err
-			}
-			return v, nil
-		}
-
-		if plan, err := magic(source, search); assert.NoError(t, err) {
-			Log.Debug("plan: [ %s ]", plan)
-		}
+	t.Run("stuff #3", func(t *testing.T) {
+		patches := createPatches("service-x", "service-y", "frontend", "middleware")
+		dependencies := createLookup(memoryStore{
+			"frontend":   {"middleware"},
+			"middleware": {"service-x", "service-y", "service-z"},
+		})
+		standardTest(t, patches, dependencies)
 	})
 
 }
@@ -154,15 +126,14 @@ type magician struct {
 	dependencies.Lookup
 }
 
-func magic(source rollout.PatchList, search func(id string) ([]string, error)) (*theplan, error) {
-	plan := &theplan{}
+func (m *magician) magic(source rollout.PatchList) (*theplan, error) {
+	plan := &theplan{rollout.PatchList{}}
 	Log.Debug("input: %s", source)
 	for n := 0; len(source) > 0 && n < 10; n++ {
 		Log.Debug("--- Slot #%v ----------------------------------------------------------------------", n)
-		plan.AddSlot()
 		for i := 0; i < len(source); {
 			c := source[i]
-			deps, err := search(c.ComponentId)
+			deps, err := m.Direct(c.ComponentId)
 			if err != nil {
 				return nil, err
 			}
@@ -178,29 +149,28 @@ func magic(source rollout.PatchList, search func(id string) ([]string, error)) (
 		}
 	}
 
-	// sort dependencies within a slot
-	for n := 1; n < len(plan.slots); n++ {
-		slot := plan.slots[n]
-		Log.Debug("checking slot #%v for internal dependencies: %s", n, slot)
-		for i := 0; i < len(slot); i++ {
-			j := i
-			c := slot[i]
-			deps, err := search(c.ComponentId)
-			if err != nil {
-				return nil, err
-			}
-			for _, dep := range deps {
-				k := slot.Index(dep)
-				Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
-				if k > -1 && k < j {
-					Log.Trace("swaping patches because of dependency")
-					Log.Trace("before swap: [ %s ]", slot)
-					Log.Trace("after swap:  [ %s ]", slot)
-					slot[j], slot[k], j = slot[k], slot[j], k
-				}
-			}
-		}
-	}
+	// // sort dependencies within a slot
+	// for n := 1; n < len(plan.things); n++ {
+	// 	Log.Debug("checking slot #%v for internal dependencies: %s", n, plan.things)
+	// 	for i := 0; i < len(plan.things); i++ {
+	// 		j := i
+	// 		c := slot[i]
+	// 		deps, err := m.Direct(c.ComponentId)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		for _, dep := range deps {
+	// 			k := slot.Index(dep)
+	// 			Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
+	// 			if k > -1 && k < j {
+	// 				Log.Trace("swaping patches because of dependency")
+	// 				Log.Trace("before swap: [ %s ]", slot)
+	// 				Log.Trace("after swap:  [ %s ]", slot)
+	// 				slot[j], slot[k], j = slot[k], slot[j], k
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	Log.Debug("source: [ %s ]", source)
 
@@ -208,32 +178,21 @@ func magic(source rollout.PatchList, search func(id string) ([]string, error)) (
 }
 
 type theplan struct {
-	slots []rollout.PatchList
-}
-
-func (plan *theplan) AddSlot() {
-	plan.slots = append(plan.slots, rollout.PatchList{})
+	queue rollout.PatchList
 }
 
 func (plan *theplan) AddPatch(p kubernetes.DeploymentPatch) {
-	n := len(plan.slots) - 1
-	plan.slots[n] = append(plan.slots[n], p)
+	plan.queue = append(plan.queue, p)
 }
 
 func (plan *theplan) Satisfies(ids []string) bool {
-	n := len(plan.slots) - 1
 	Log.Trace("searching plan %s for dependencies %s", plan, ids)
-	for i, slot := range plan.slots {
-		if i == n {
-			return len(ids) == 0
+	for _, patch := range plan.queue {
+		if len(ids) == 0 {
+			return true
 		}
-		for _, comp := range slot {
-			if comp.ComponentId == ids[0] {
-				ids = ids[1:]
-			}
-			if len(ids) == 0 {
-				return true
-			}
+		if patch.ComponentId == ids[0] {
+			ids = ids[1:]
 		}
 	}
 	return len(ids) == 0
@@ -241,10 +200,10 @@ func (plan *theplan) Satisfies(ids []string) bool {
 
 func (plan *theplan) String() string {
 	sb := strings.Builder{}
-	limit := len(plan.slots) - 1
-	for i, slot := range plan.slots {
+	limit := len(plan.queue) - 1
+	for i, patch := range plan.queue {
 		sb.WriteString("[")
-		sb.WriteString(slot.String())
+		sb.WriteString(patch.DisplayName())
 		sb.WriteString("]")
 		if i < limit {
 			sb.WriteString(" -> ")
@@ -254,11 +213,11 @@ func (plan *theplan) String() string {
 }
 
 type result struct {
-	rollout.PatchList
+	plan rollout.PatchList
 }
 
 func (c result) Order(t *testing.T, a, b string) {
-	x := c.PatchList.Index(a)
-	y := c.PatchList.Index(b)
+	x := c.plan.Index(a)
+	y := c.plan.Index(b)
 	assert.True(t, x > -1 && y > -1 && x < y, "%s should be before %s", a, b)
 }
