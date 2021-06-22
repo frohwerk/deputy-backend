@@ -50,7 +50,7 @@ func main() {
 		Log.Fatal("invalid parameter value 'at': %s", err)
 	}
 
-	rollout.Log = logger.Basic(logger.LEVEL_TRACE)
+	rollout.Log = logger.Basic(logger.LEVEL_DEBUG)
 
 	Log.Info("Source time: %v", before)
 
@@ -104,7 +104,7 @@ func main() {
 	}
 
 	sort.Slice(patches, func(i, j int) bool { return patches[i].ComponentId > patches[j].ComponentId })
-	Log.Debug("Patches before planing stage:", rollout.PatchList(patches))
+	Log.Debug("Patches before planing stage: %s", rollout.PatchList(patches))
 
 	plan, err := planner.CreatePlan(patches)
 	if err != nil {
@@ -186,7 +186,6 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 		Log.Debug("%s => %s", c.Name, c.Image)
 	}
 
-	//componentLoop:
 	for i := 0; i < len(source); i++ {
 		source, target := source[i], target[i]
 		switch {
@@ -195,9 +194,8 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 		case source.Platform != target.Platform:
 			return nil, fmt.Errorf("source and target must use the same platform (may use different environments)")
 		case source.Image == target.Image:
-			Log.Warn("TODO: Skip deployment if the image is the same!!!")
 			Log.Debug("%v == %v", source.Image, target.Image)
-			// continue componentLoop
+			continue
 		case source.Image == "":
 			return nil, fmt.Errorf("source has no image specified for component %s", source.Id)
 		case target.Image == "":
