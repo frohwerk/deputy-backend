@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-type Plan struct {
+type builder struct {
 	*strategy
 	source PatchList
 	queue  PatchList
 }
 
-func (s *strategy) CreatePlan(source PatchList) (*Plan, error) {
-	plan := &Plan{s, source, PatchList{}}
+func (s *strategy) CreatePlan(source PatchList) (PatchList, error) {
+	plan := &builder{s, source, PatchList{}}
 	Log.Debug("input: %s", source)
 	for n := 0; len(source) > 0 && n < len(plan.source); n++ {
 		Log.Debug("--- loop #%v ----------------------------------------------------------------------", n)
@@ -37,10 +37,10 @@ func (s *strategy) CreatePlan(source PatchList) (*Plan, error) {
 			return nil, fmt.Errorf("source [%s] contains a circular dependency", source)
 		}
 	}
-	return plan, nil
+	return plan.queue, nil
 }
 
-func (plan *Plan) dependencies(id string) ([]string, error) {
+func (plan *builder) dependencies(id string) ([]string, error) {
 	deps, err := plan.Lookup.Direct(id)
 	if err != nil {
 		return nil, err
@@ -65,11 +65,11 @@ func (plan *Plan) dependencies(id string) ([]string, error) {
 	return deps, err
 }
 
-func (plan *Plan) contains(ids ...string) bool {
+func (plan *builder) contains(ids ...string) bool {
 	return plan.queue.Contains(ids...)
 }
 
-func (plan *Plan) String() string {
+func (plan *builder) String() string {
 	sb := strings.Builder{}
 	limit := len(plan.queue) - 1
 	for i, patch := range plan.queue {

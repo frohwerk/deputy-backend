@@ -85,7 +85,7 @@ func main() {
 	sort.Slice(patches, func(i, j int) bool { return patches[i].ComponentId > patches[j].ComponentId })
 	fmt.Println("Patches before planing stage:", rollout.PatchList(patches))
 
-	plan, err := planner.Plan(patches)
+	plan, err := planner.CreatePlan(patches)
 	if err != nil {
 		log.Fatalf("error creating patches for target: %s", err)
 	}
