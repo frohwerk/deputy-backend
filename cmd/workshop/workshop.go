@@ -28,11 +28,12 @@ func init() {
 }
 
 func main() {
+	Log.Debug("command line: %s", os.Args[1:])
 	switch len(os.Args) {
 	case 1:
 		Log.Fatal("missing parameter: application id")
 	case 2:
-		Log.Fatal("missing parameter: source unix time (or * for latest)")
+		Log.Fatal("missing parameter: source unix time (or the word 'now')")
 	case 3:
 		Log.Fatal("missing parameter: source environment id")
 	case 4:
@@ -58,6 +59,27 @@ func main() {
 
 	appsRepo := apps.NewRepository(db)
 	platforms := k8s.CreateConfigRepository(db)
+
+	if len(appId) < 36 {
+		name, row := appId, db.QueryRow(`SELECT id FROM apps WHERE name = $1`, appId)
+		if err := row.Scan(&appId); err != nil {
+			Log.Fatal("No application with name '%s' found", name)
+		}
+	}
+
+	if len(source) < 36 {
+		name, row := appId, db.QueryRow(`SELECT id FROM envs WHERE name = $1`, source)
+		if err := row.Scan(&source); err != nil {
+			Log.Fatal("No application with name '%s' found", name)
+		}
+	}
+
+	if len(target) < 36 {
+		name, row := appId, db.QueryRow(`SELECT id FROM envs WHERE name = $1`, target)
+		if err := row.Scan(&target); err != nil {
+			Log.Fatal("No application with name '%s' found", name)
+		}
+	}
 
 	planner := rollout.Strategy(dependencies.Lookup{Store: dependencies.Cache(dependencies.DefaultDatabase(db))})
 
@@ -199,7 +221,7 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 
 func parseTime(t string) (time.Time, error) {
 	switch t {
-	case "*":
+	case "now":
 		return time.Now(), nil
 	default:
 		return epoch.ParseTime(t)
