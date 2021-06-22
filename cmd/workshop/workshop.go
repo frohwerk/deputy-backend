@@ -9,9 +9,12 @@ import (
 	"time"
 
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
+	"github.com/frohwerk/deputy-backend/cmd/workshop/dependencies"
+	"github.com/frohwerk/deputy-backend/cmd/workshop/rollout"
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/epoch"
 	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
+	"github.com/frohwerk/deputy-backend/internal/logger"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -33,7 +36,7 @@ func (s byId) Swap(i, j int) {
 }
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 4 {
 		log.Fatalln("missing parameter: image reference")
 	}
 
@@ -47,25 +50,29 @@ func main() {
 		log.Fatalf("invalid parameter value 'at': %s", err)
 	}
 
+	rollout.Log = logger.Basic(logger.LEVEL_TRACE)
+
 	fmt.Printf("Source time: %v\n", before)
 
 	db := database.Open()
 	defer db.Close()
 
-	repo := apps.NewRepository(db)
+	appsRepo := apps.NewRepository(db)
 	platforms := k8s.CreateConfigRepository(db)
+
+	planner := rollout.Strategy(dependencies.Lookup{Store: dependencies.Cache(dependencies.DefaultDatabase(db))})
 
 	targetEnv, err := platforms.Environment(target)
 	if err != nil {
 		log.Fatalf("error reading target environment configuration: %s", err)
 	}
 
-	targetApp, err := repo.CurrentView(appId, target)
+	targetApp, err := appsRepo.CurrentView(appId, target)
 	if err != nil {
 		log.Fatalf("error reading target application: %s", err)
 	}
 
-	sourceApp, err := repo.History(appId, source, &before)
+	sourceApp, err := appsRepo.History(appId, source, &before)
 	if err != nil {
 		log.Fatalf("error reading source application: %s", err)
 	}
@@ -75,8 +82,21 @@ func main() {
 		log.Fatalf("error creating patches for target: %s", err)
 	}
 
+	sort.Slice(patches, func(i, j int) bool { return patches[i].ComponentId > patches[j].ComponentId })
+	fmt.Println("Patches before planing stage:", rollout.PatchList(patches))
+
+	plan, err := planner.Plan(patches)
+	if err != nil {
+		log.Fatalf("error creating patches for target: %s", err)
+	}
+
+	if len(plan) > -2 {
+		fmt.Println("Rollout plan:", plan)
+		return
+	}
+
 	fmt.Printf("Patching environment %s\n", target)
-	for _, patch := range patches {
+	for _, patch := range plan {
 		target, err := targetEnv.Platform(patch.PlatformName)
 		if err != nil {
 			log.Fatalf("error reading target platform: %v", err)
@@ -145,7 +165,7 @@ func createPatches(source, target []apps.Component) ([]k8s.DeploymentPatch, erro
 		fmt.Printf("%s => %s\n", c.Name, c.Image)
 	}
 
-componentLoop:
+	//componentLoop:
 	for i := 0; i < len(source); i++ {
 		source, target := source[i], target[i]
 		switch {
@@ -154,8 +174,9 @@ componentLoop:
 		case source.Platform != target.Platform:
 			return nil, fmt.Errorf("source and target must use the same platform (may use different environments)")
 		case source.Image == target.Image:
+			fmt.Println("TODO: Skip deployment if the image is the same!!!")
 			fmt.Printf("%v == %v\n", source.Image, target.Image)
-			continue componentLoop
+			// continue componentLoop
 		case source.Image == "":
 			return nil, fmt.Errorf("source has no image specified for component %s", source.Id)
 		case target.Image == "":

@@ -45,15 +45,22 @@ func (c *collector) all(id string) error {
 		return fmt.Errorf("too many recursions, please check if there are circular relationships in your model")
 	}
 
-	x, err := c.Direct(id)
+	deps, err := c.Direct(id)
 	if err != nil {
 		return err
 	}
 
-	for _, y := range x {
-		c.found.Put(y)
-		c.all(y)
+	for _, dep := range deps {
+		c.found.Put(dep)
+		c.all(dep)
 	}
 
 	return nil
+}
+
+func (c *collector) direct(id string) ([]string, error) {
+	if c.Store == nil {
+		return []string{}, nil
+	}
+	return c.Direct(id)
 }

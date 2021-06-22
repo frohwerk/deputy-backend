@@ -9,16 +9,16 @@ func (r *memoryStore) Direct(id string) ([]string, error) {
 	return []string{}, nil
 }
 
-type Cache struct {
+type cache struct {
 	Store
 	entries map[string][]string
 }
 
-func (s *Cache) Direct(id string) ([]string, error) {
-	if s.entries == nil {
-		s.entries = make(map[string][]string)
-	}
+func Cache(s Store) Store {
+	return &cache{s, make(map[string][]string)}
+}
 
+func (s *cache) Direct(id string) ([]string, error) {
 	if v, ok := s.entries[id]; ok {
 		return v, nil
 	}

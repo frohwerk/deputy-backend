@@ -137,3 +137,11 @@ func CreateImagePatch(container, imageRef string) DeploymentPatch {
 		},
 	}
 }
+
+func (p DeploymentPatch) Name() string {
+	switch {
+	case p.ComponentName != "":
+		return p.ComponentName
+	}
+	return p.ComponentId
+}
