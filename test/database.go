@@ -16,7 +16,7 @@ func DB() *sql.DB {
 	defer _mutex.Unlock()
 
 	if _db == nil {
-		db, err := sql.Open("postgres", "postgres://test:drowssap@database:5432/test?sslmode=disable")
+		db, err := sql.Open("postgres", "postgres://test:drowssap@localhost:5433/test?sslmode=disable")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error on open:", err)
 			os.Exit(1)
@@ -31,7 +31,9 @@ func DB() *sql.DB {
 		if err == nil {
 			return _db
 		}
-		fmt.Println("Database not available (yet?). Sleeping...")
+		if i%5 == 0 {
+			fmt.Println("Database not available (yet?). Sleeping...")
+		}
 		time.Sleep(time.Second)
 	}
 

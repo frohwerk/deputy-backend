@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/frohwerk/deputy-backend/cmd/workshop/tree"
-	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/logger"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +12,8 @@ import (
 func TestTree(t *testing.T) {
 	tree.Log = logger.Basic(logger.LEVEL_DEBUG)
 
-	db := database.Open()
+	db := DB()
+	// db := database.Open()
 	defer db.Close()
 
 	exec := func(command string, args ...interface{}) {

@@ -2,7 +2,9 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -27,12 +29,18 @@ type basic struct {
 
 type Logger interface {
 	Pattern(format string)
+	Writer(level logLevel) io.Writer
 	Trace(format string, args ...interface{})
 	Debug(format string, args ...interface{})
 	Info(format string, args ...interface{})
 	Warn(format string, args ...interface{})
 	Error(format string, args ...interface{})
 	Fatal(format string, args ...interface{})
+}
+
+type logger interface {
+	Logger
+	log(level logLevel, format string, args ...interface{})
 }
 
 func Basic(l logLevel) Logger {
@@ -77,8 +85,16 @@ func (l *basic) Fatal(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+func (b *basic) Writer(level logLevel) io.Writer {
+	return &logWriter{b, level}
+}
+
 func (l *basic) log(level logLevel, format string, args ...interface{}) {
-	if l.level <= level {
+	format = strings.TrimSpace(format)
+	switch {
+	case format == "":
+		return
+	case l.level <= level:
 		fmt.Printf(l.pattern, time.Now().Format("2006-01-02 15:04:05.000"), level, fmt.Sprintf(format, args...))
 	}
 }
