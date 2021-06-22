@@ -109,53 +109,63 @@ func TestOrdering(t *testing.T) {
 	})
 
 	t.Run("stuff #1", func(t *testing.T) {
-		plan := theplan{}
 		source := createPatches("service-x", "frontend", "middleware", "service-y")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
 
-		search := func(id string) []string {
+		search := func(id string) ([]string, error) {
 			v, err := dependencies.Direct(id)
 			if err != nil {
-				t.Fatalf("error looking a dependencies for %s", id)
+				return nil, err
 			}
-			return v
+			return v, nil
 		}
 
-		magic(source, &plan, search)
+		if plan, err := magic(source, search); assert.NoError(t, err) {
+			Log.Debug("plan: [ %s ]", plan)
+		}
 	})
 
 	t.Run("stuff #2", func(t *testing.T) {
-		plan := &theplan{}
 		source := createPatches("service-x", "service-y", "frontend", "middleware")
 		dependencies := createLookup(memoryStore{
 			"frontend":   {"middleware"},
 			"middleware": {"service-x", "service-y"},
 		})
 
-		search := func(id string) []string {
+		search := func(id string) ([]string, error) {
 			v, err := dependencies.Direct(id)
 			if err != nil {
-				t.Fatalf("error looking a dependencies for %s", id)
+				return nil, err
 			}
-			return v
+			return v, nil
 		}
 
-		magic(source, plan, search)
+		if plan, err := magic(source, search); assert.NoError(t, err) {
+			Log.Debug("plan: [ %s ]", plan)
+		}
 	})
 
 }
 
-func magic(source rollout.PatchList, plan *theplan, search func(id string) []string) {
+type magician struct {
+	dependencies.Lookup
+}
+
+func magic(source rollout.PatchList, search func(id string) ([]string, error)) (*theplan, error) {
+	plan := &theplan{}
 	Log.Debug("input: %s", source)
 	for n := 0; len(source) > 0 && n < 10; n++ {
 		Log.Debug("--- Slot #%v ----------------------------------------------------------------------", n)
 		plan.AddSlot()
 		for i := 0; i < len(source); {
 			c := source[i]
-			deps := search(c.ComponentId)
+			deps, err := search(c.ComponentId)
+			if err != nil {
+				return nil, err
+			}
 			Log.Debug("checking component <%s> with dependencies %s for slot #%v", c.ComponentId, deps, n)
 			if plan.Satisfies(deps) {
 				Log.Debug("dependencies for component <%s> are satisfied. moving to target slot #%v", c.ComponentId, n)
@@ -175,7 +185,10 @@ func magic(source rollout.PatchList, plan *theplan, search func(id string) []str
 		for i := 0; i < len(slot); i++ {
 			j := i
 			c := slot[i]
-			deps := search(c.ComponentId)
+			deps, err := search(c.ComponentId)
+			if err != nil {
+				return nil, err
+			}
 			for _, dep := range deps {
 				k := slot.Index(dep)
 				Log.Trace("comparing %s at index %v <-> %s at index %v", slot[j].Name(), j, dep, k)
@@ -190,7 +203,8 @@ func magic(source rollout.PatchList, plan *theplan, search func(id string) []str
 	}
 
 	Log.Debug("source: [ %s ]", source)
-	Log.Debug("plan:   [ %s ]", plan)
+
+	return plan, nil
 }
 
 type theplan struct {
