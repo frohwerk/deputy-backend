@@ -2,8 +2,6 @@ package rollout
 
 import (
 	"strings"
-
-	"github.com/frohwerk/deputy-backend/internal/kubernetes"
 )
 
 type Plan struct {
@@ -24,7 +22,7 @@ func (r *strategy) CreatePlan(source PatchList) (*Plan, error) {
 			Log.Debug("checking component <%s> with dependencies %s for slot #%v", c.ComponentId, deps, n)
 			if plan.Satisfies(deps) {
 				Log.Debug("dependencies for component <%s> are satisfied. moving to target slot #%v", c.ComponentId, n)
-				plan.AddPatch(c)
+				plan.queue = append(plan.queue, c)
 				source = append(source[:i], source[i+1:]...)
 				Log.Trace("source: [%s] ||| plan: %s", source, plan)
 			} else {
@@ -33,10 +31,6 @@ func (r *strategy) CreatePlan(source PatchList) (*Plan, error) {
 		}
 	}
 	return plan, nil
-}
-
-func (plan *Plan) AddPatch(p kubernetes.DeploymentPatch) {
-	plan.queue = append(plan.queue, p)
 }
 
 func (plan *Plan) Satisfies(ids []string) bool {
