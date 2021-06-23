@@ -9,10 +9,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/frohwerk/deputy-backend/cmd/server/apps"
 	"github.com/frohwerk/deputy-backend/cmd/workshop/dependencies"
+	"github.com/frohwerk/deputy-backend/cmd/workshop/job"
+	"github.com/frohwerk/deputy-backend/cmd/workshop/job/copy"
 	"github.com/frohwerk/deputy-backend/cmd/workshop/rollout"
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/epoch"
@@ -98,23 +102,61 @@ func (i *instance) stop() {
 	i.server.Shutdown(context.Background())
 }
 
+type JobsRepo struct {
+	sync.Mutex
+	nextKey uint
+	entries map[string]*job.OutputBuffer
+}
+
+func (r *JobsRepo) Create() (string, *job.OutputBuffer) {
+	r.Lock()
+	defer r.Unlock()
+	r.nextKey++
+	id := strconv.Itoa(int(r.nextKey))
+	buf := &job.OutputBuffer{}
+	r.entries[id] = buf
+	return id, buf
+}
+
+func (r *JobsRepo) Output(id string) *job.OutputBuffer {
+	if v, ok := r.entries[id]; ok {
+		return v
+	} else {
+		return nil
+	}
+}
+
 func (i *instance) serve() {
 	Log.Info("Starting in server mode")
-	r := chi.NewMux()
-	r.Post("/", func(rw http.ResponseWriter, r *http.Request) {
+	r := chi.NewRouter()
+
+	jobs := &JobsRepo{entries: map[string]*job.OutputBuffer{}}
+
+	r.Get("/api/job/{id}/logs", func(rw http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		out := jobs.Output(id)
+		if out == nil {
+			rw.WriteHeader(http.StatusNotFound)
+			rw.Write(nil)
+		} else {
+			rw.WriteHeader(http.StatusOK)
+			lines, lf := out.Get(), []byte("\n")
+			for _, line := range lines {
+				rw.Write([]byte(line))
+				rw.Write(lf)
+			}
+		}
+	})
+
+	r.Post("/api/jobs/copy", func(rw http.ResponseWriter, r *http.Request) {
 		Log.Info("incoming request")
-		v := r.URL.Query()
-
-		appId := v.Get("appId")
-		before := v.Get("before")
-		source := v.Get("source")
-		target := v.Get("target")
-
-		if err := i.copy(appId, before, source, target); err != nil {
+		id, out := jobs.Create()
+		cp := copy.Job(i.db, i.apps, i.platforms, out)
+		if err := cp.Run(job.Params(r.URL.Query())); err != nil {
 			rw.Write([]byte(fmt.Sprint(err)))
 		} else {
 			rw.WriteHeader(http.StatusAccepted)
-			rw.Write([]byte("Accepted"))
+			rw.Write([]byte(fmt.Sprint("Job", id, "queued")))
 		}
 	})
 
@@ -185,10 +227,10 @@ func (i *instance) copy(appId, at, source, target string) error {
 		return fmt.Errorf("error creating patches for target: %s", err)
 	}
 
-	if len(plan) > -2 {
-		Log.Debug("Rollout plan: %s", plan)
-		return nil
-	}
+	// if len(plan) > -2 {
+	// 	Log.Debug("Rollout plan: %s", plan)
+	// 	return nil
+	// }
 
 	Log.Info("Patching environment %s", target)
 	for _, patch := range plan {

@@ -25,8 +25,8 @@ func (t *thingy) Write() {
 
 func TestInvalidCommand(t *testing.T) {
 	cmd := exec.Command("ducker", "--help")
-	cmd.Stdout = logger.Default.Writer(logger.LEVEL_INFO)
-	cmd.Stderr = logger.Default.Writer(logger.LEVEL_ERROR)
+	cmd.Stdout = logger.Writer(logger.LEVEL_INFO)
+	cmd.Stderr = logger.Writer(logger.LEVEL_ERROR)
 	err := errors.Unwrap(cmd.Start())
 	if err != nil {
 		if !assert.Equal(t, exec.ErrNotFound, err) {

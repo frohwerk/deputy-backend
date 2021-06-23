@@ -24,13 +24,14 @@ func (patches PatchList) String() string {
 		switch {
 		case v.ComponentName != "":
 			sb.WriteString(v.ComponentName)
-		case v.ComponentId != "":
-			sb.WriteString(v.ComponentId)
 		default:
 			sb.WriteString(v.ComponentId)
 		}
+		sb.WriteString(" [")
+		sb.WriteString(v.Spec.Template.Spec.Containers[0].Image)
+		sb.WriteString("]")
 		if i < limit {
-			sb.WriteString(", ")
+			sb.WriteString(" -> ")
 		}
 	}
 	return sb.String()

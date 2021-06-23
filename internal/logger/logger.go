@@ -28,8 +28,6 @@ type basic struct {
 }
 
 type Logger interface {
-	Pattern(format string)
-	Writer(level logLevel) io.Writer
 	Trace(format string, args ...interface{})
 	Debug(format string, args ...interface{})
 	Info(format string, args ...interface{})
@@ -41,6 +39,11 @@ type Logger interface {
 type logger interface {
 	Logger
 	log(level logLevel, format string, args ...interface{})
+}
+
+func Writer(level logLevel) io.Writer {
+	logger := Basic(level).(*basic)
+	return &logWriter{logger, level}
 }
 
 func Basic(l logLevel) Logger {
@@ -83,10 +86,6 @@ func (l *basic) Error(format string, args ...interface{}) {
 func (l *basic) Fatal(format string, args ...interface{}) {
 	l.log(LEVEL_ERROR, format, args...)
 	os.Exit(1)
-}
-
-func (b *basic) Writer(level logLevel) io.Writer {
-	return &logWriter{b, level}
 }
 
 func (l *basic) log(level logLevel, format string, args ...interface{}) {
