@@ -47,7 +47,7 @@ func (job *copy) Run(p job.Params) error {
 		return fmt.Errorf("invalid parameter value 'at': %s", err)
 	}
 
-	dryRun := strings.ToLower(p.Get("dryRun")) != "false"
+	dryRun := strings.ToLower(p.Get("dryRun")) == "true"
 
 	job.out.Write("Source time: %v", before.Format(time.RFC3339))
 
