@@ -45,7 +45,7 @@ func main() {
 	frontend := httputil.NewSingleHostReverseProxy(frontendRoute)
 	backendRoute, _ := url.Parse("http://localhost:8080")
 	backend := httputil.NewSingleHostReverseProxy(backendRoute)
-	tasksRoute, _ := url.Parse("http://localhost:8765")
+	tasksRoute, _ := url.Parse("http://localhost:8877")
 	taskExecutor := httputil.NewSingleHostReverseProxy(tasksRoute)
 
 	provider, err := oidc.NewProvider(ctx, "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo")

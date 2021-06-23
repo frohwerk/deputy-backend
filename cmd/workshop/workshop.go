@@ -132,7 +132,7 @@ func (i *instance) serve() {
 
 	jobs := &JobsRepo{entries: map[string]*job.OutputBuffer{}}
 
-	r.Get("/api/job/{id}/logs", func(rw http.ResponseWriter, r *http.Request) {
+	r.Get("/api/tasks/copy/{id}/logs", func(rw http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		out := jobs.Output(id)
 		if out == nil {
@@ -148,7 +148,7 @@ func (i *instance) serve() {
 		}
 	})
 
-	r.Post("/api/jobs/copy", func(rw http.ResponseWriter, r *http.Request) {
+	r.Post("/api/tasks/copy", func(rw http.ResponseWriter, r *http.Request) {
 		Log.Info("incoming request")
 		id, out := jobs.Create()
 		cp := copy.Job(i.db, i.apps, i.platforms, out)
@@ -156,7 +156,7 @@ func (i *instance) serve() {
 			rw.Write([]byte(fmt.Sprint(err)))
 		} else {
 			rw.WriteHeader(http.StatusAccepted)
-			rw.Write([]byte(fmt.Sprint("Job", id, "queued")))
+			rw.Write([]byte(fmt.Sprint("Job ", id, " queued")))
 		}
 	})
 
@@ -171,7 +171,7 @@ func (i *instance) serve() {
 func (i *instance) copy(appId, at, source, target string) error {
 	before, err := parseTime(at)
 	if err != nil {
-		return fmt.Errorf("invalid parameter value 'at': %s", err)
+		return fmt.Errorf("invalid parameter value 'before': %s", err)
 	}
 
 	Log.Info("Source time: %v", before)

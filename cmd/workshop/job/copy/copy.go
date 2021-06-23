@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -46,7 +47,9 @@ func (job *copy) Run(p job.Params) error {
 		return fmt.Errorf("invalid parameter value 'at': %s", err)
 	}
 
-	job.out.Write("Source time: %v", before)
+	dryRun := strings.ToLower(p.Get("dryRun")) != "false"
+
+	job.out.Write("Source time: %v", before.Format(time.RFC3339))
 
 	if !validId.MatchString(appId) {
 		name, row := appId, job.db.QueryRow(`SELECT id FROM apps WHERE name = $1`, appId)
@@ -103,7 +106,7 @@ func (job *copy) Run(p job.Params) error {
 		return fmt.Errorf("error creating patches for target: %s", err)
 	}
 
-	if len(plan) > -2 {
+	if dryRun {
 		job.out.Write("Rollout plan: %s", plan)
 		return nil
 	}
