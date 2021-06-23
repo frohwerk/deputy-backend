@@ -18,10 +18,12 @@ import (
 var (
 	imgmatch = &cobra.Command{RunE: run}
 	port     int
+	registry string
 )
 
 func init() {
 	imgmatch.Flags().IntVarP(&port, "port", "p", 8092, "port number the server process will listen on")
+	imgmatch.Flags().StringVarP(&registry, "registry", "r", "", "The base uri of the docker container registry to use")
 }
 
 func main() {
@@ -36,7 +38,7 @@ func run(cmd *cobra.Command, args []string) error {
 	db := database.Open()
 	defer db.Close()
 
-	reg := &images.RemoteRegistry{BaseUrl: "http://ocrproxy-myproject.192.168.178.31.nip.io"}
+	reg := &images.RemoteRegistry{BaseUrl: registry}
 	fs := database.NewFileStore(db)
 	m := matcher.New(fs, fs, reg)
 

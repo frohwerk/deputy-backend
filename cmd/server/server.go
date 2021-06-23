@@ -15,7 +15,6 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/server/deployments"
 	"github.com/frohwerk/deputy-backend/cmd/server/envs"
 	"github.com/frohwerk/deputy-backend/cmd/server/platforms"
-	artifactory "github.com/frohwerk/deputy-backend/internal/artifactory/client"
 
 	"github.com/frohwerk/deputy-backend/internal"
 	"github.com/frohwerk/deputy-backend/internal/database"
@@ -39,7 +38,6 @@ var (
 )
 
 func init() {
-	command.Flags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091/libs-release-local", "Specify the base-uri for artifactory")
 	command.Flags().IntVarP(&port, "port", "p", 8080, "port this webhook will listen on")
 }
 
@@ -99,8 +97,6 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 	defer util.Close(db, log.Fatalf)
 
-	rt := artifactory.New(rtbase)
-
 	as := database.NewAppStore(db)
 	cs := database.NewComponentStore(db)
 	ds := database.NewDeploymentStore(db)
@@ -149,7 +145,6 @@ func Run(cmd *cobra.Command, args []string) {
 			r.Delete("/{platform}", platforms.Delete(ps))
 		})
 	})
-	mux.Post("/webhooks/artifactory", rt.WebhookHandler)
 	mux.Get("/stream", stream)
 
 	server := http.Server{
