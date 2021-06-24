@@ -1,6 +1,3 @@
--- Debug triggers for writing to apps_timeline
--- CREATE OR REPLACE FUNCTION deployments_print_changes() RETURNS void AS $$
-
 -- Helper function for writing apps_timeline on deployments changes...
 CREATE OR REPLACE FUNCTION write_apps_timeline(_platform_id CHARACTER VARYING, _component_id CHARACTER VARYING, _valid_from TIMESTAMP) RETURNS void AS $$
   BEGIN
@@ -112,21 +109,3 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER apps_insert_timeline
 AFTER INSERT ON apps
 FOR EACH ROW EXECUTE FUNCTION apps_insert_timeline();
-
--- Change notifications for all tables?
-CREATE OR REPLACE FUNCTION deployments_notify() RETURNS trigger AS $$
-  BEGIN
-    CASE TG_OP
-      WHEN 'INSERT' THEN PERFORM pg_notify('demo_channel', FORMAT('%s;%s;%s;%s', TG_OP, NEW.component_id, NEW.platform_id, NEW.updated));
-      WHEN 'UPDATE' THEN PERFORM pg_notify('demo_channel', FORMAT('%s;%s;%s;%s', TG_OP, NEW.component_id, NEW.platform_id, NEW.updated));
-      WHEN 'DELETE' THEN PERFORM pg_notify('demo_channel', FORMAT('%s;%s;%s;%s', TG_OP, OLD.component_id, OLD.platform_id, OLD.updated));
-      ELSE RAISE EXCEPTION 'Unsupported operation in trigger function deployments_notify: %', TG_OP;
-    END CASE;
-    RETURN NEW;
-  END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER deployments_notify_trigger
-AFTER INSERT OR UPDATE OR DELETE ON deployments
-FOR EACH ROW
-EXECUTE FUNCTION deployments_notify();
