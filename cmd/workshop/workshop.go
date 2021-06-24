@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -155,8 +156,7 @@ func (i *instance) serve() {
 		if err := cp.Run(job.Params(r.URL.Query())); err != nil {
 			rw.Write([]byte(fmt.Sprint(err)))
 		} else {
-			rw.WriteHeader(http.StatusAccepted)
-			rw.Write([]byte(fmt.Sprint("Job ", id, " queued")))
+			json.NewEncoder(rw).Encode(response{Id: id})
 		}
 	})
 
