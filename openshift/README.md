@@ -1,0 +1,1 @@
+The authorizations defined by the serviceaccount and roles in the security folder are required for deputy to access the deployments resource on the API server.
