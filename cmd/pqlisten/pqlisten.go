@@ -1,37 +1,27 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
-	"time"
 
-	"github.com/frohwerk/deputy-backend/internal/database"
-	"github.com/lib/pq"
+	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/notify"
 )
 
-func main() {
-	listener := database.NewListener()
-	defer listener.Close()
-	listener.Listen("demo_channel")
+var Log logger.Logger = logger.Basic(logger.LEVEL_DEBUG)
 
+func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, os.Kill)
 
-	handle := func(n *pq.Notification) {
-		fmt.Println("Incoming on channel", n.Channel)
-		fmt.Println(">>", n.Extra)
+	listener := notify.NewListener()
+	defer listener.Close()
+
+	err := listener.Listen("platforms", func(s string) { Log.Info("Incoming on channel platforms: %s", s) })
+	if err != nil {
+		Log.Fatal("%s", err)
 	}
 
-	fmt.Println("Listening on demo_channel")
-	for {
-		select {
-		case n := <-listener.Notify:
-			go handle(n)
-		case <-sigs:
-			return
-		case <-time.After(1 * time.Minute):
-			go listener.Ping()
-		}
-	}
+	<-sigs
+	return
 }

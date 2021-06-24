@@ -6,6 +6,7 @@ import (
 
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/notify"
 	"github.com/frohwerk/deputy-backend/internal/task"
 )
 
@@ -26,27 +27,53 @@ func main() {
 		log.Fatal("error reading platforms: %s", err)
 	}
 
-	log.Debug("Number of platforms: %d", len(platforms))
-	watchers := make([]task.Task, len(platforms))
-	for i, p := range platforms {
-		watchers[i] = k8swatcher(p.Id)
+	listener := notify.NewListener()
+	notifications := make(chan string)
+	if err = listener.Listen("platforms", func(payload string) { notifications <- payload }); err != nil {
+		log.Warn("error starting listener for configuration updates: %s", err)
 	}
 
-	task.StartAll(watchers)
+	log.Debug("Number of platforms: %d", len(platforms))
+	ctrl := &controller{tasks: make(map[string]task.Task)}
+	for _, p := range platforms {
+		ctrl.Start(p.Id, k8swatcher(p.Id))
+	}
+
+	ctrl.StartAll()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	for {
-		switch sig := <-signals; sig {
-		case os.Interrupt:
-			task.StopAll(watchers)
-			task.WaitAll(watchers)
-			os.Exit(0)
-		case os.Kill:
-			os.Exit(0)
-		default:
-			log.Warn("Received unexpected signal: %v\n", sig)
+		select {
+		case payload := <-notifications:
+			log.Trace("NOTIFY on platforms: '%s'", payload)
+			switch op, id := payload[0:1], payload[2:]; op {
+			case "I":
+				log.Info("New platform added: %s", id)
+				ctrl.Start(id, k8swatcher(id))
+			case "U":
+				log.Info("Platform modified: %s", id)
+				ctrl.Restart(id)
+			case "D":
+				log.Info("Platform removed: %s", id)
+				ctrl.Remove(id)
+			}
+		case sig := <-signals:
+			switch sig {
+			case os.Interrupt:
+				ctrl.Close()
+				ctrl.StopAll()
+				ctrl.WaitAll()
+				listener.Close()
+				log.Info("Bye!")
+				return
+			case os.Kill:
+				log.Info("AAAAAARRRGGH!")
+				return
+			default:
+				log.Warn("Received unexpected signal: %v\n", sig)
+			}
 		}
 	}
 }
