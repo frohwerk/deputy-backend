@@ -18,12 +18,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var (
-	keys = map[string]string{
-		"7tvjtgKw6v8dSYBT2xu433-0g-aEngP_NSYCfsLUpV4": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvmMDe4TWD0nEea7osM+EC60ucOZRl5RwrN3iWZxeVMX2jnRLIea5upTAEEEMsArrOyxSYaJq6JtixGAnogAZEttzxNo/Ccp7CWqYWKSq7sE7fKEMCKksllpXuYTrf1AoMVt+J3v3YTTfJX4W35PhP5fkp7bMv2VthDgc8x7HNOPgNrde+aBKL5BaRkDr6azhcQCvYEf+l6mQIN+Wnv+LGwJX3N/5KBpPmySOdgRRPthUg9FS1BS2eEiGiu2q5ce5hCALX+jZIoq224GG9ZQInJ+RoSHwzv8JzBFTFlTI9hXmd6urZomSVeYFPsWUr5ppYE/51K4sDsIt2wRXqi/nawIDAQAB",
-	}
-)
-
 type ServerApplication struct {
 	http.Server
 }

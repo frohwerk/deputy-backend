@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deputy-database
+  labels:
+    app: deputy-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: deputy-database
+  template:
+    metadata:
+      labels:
+        app: deputy-database
+    spec:
+      containers:
+      - name: postgresql-12
+        image: registry.redhat.io/rhel8/postgresql-12
+        env:
+        - name: POSTGRESQL_USER
+          value: "deputy"
+        - name: POSTGRESQL_PASSWORD
+          value: "!m5i4e3h2e1g"
+        - name: POSTGRESQL_DATABASE
+          value: "deputy"
+        - name: POSTGRESQL_ADMIN_PASSWORD
+          value: "admin"
+        ports:
+        - containerPort: 5432
+        resources:
+          limits:
+            cpu: "0.15"
+            memory: "512Mi"
+        volumeMounts:
+        - name: "deputy-database-volume"
+          mountPath: "/var/lib/pgsql/data"
+      volumes:
+      - name: "deputy-database-volume"
+        persistentVolumeClaim:
+          claimName: "deputy-database"
+      imagePullSecrets:
+      - name: registry.redhat.io

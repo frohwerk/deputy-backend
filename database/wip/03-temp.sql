@@ -5,7 +5,7 @@ DROP SCHEMA IF EXISTS draft;
 CREATE SCHEMA draft;
 
 CREATE TABLE draft.apps (
-    id   VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id   VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name VARCHAR(50) UNIQUE,
     PRIMARY KEY (id)
 );
@@ -20,19 +20,19 @@ CREATE TABLE draft.apps_timeline (
 );
 
 CREATE TABLE draft.components (
-    id   VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id   VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
     PRIMARY KEY (id)
 );
 
 CREATE TABLE draft.envs (
-    id   VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id   VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
     PRIMARY KEY (id)
 );
 
 CREATE TABLE draft.platforms (
-    id         VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id         VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     env_id     VARCHAR(36) NOT NULL,
     name       VARCHAR(50),
     api_server VARCHAR(256),

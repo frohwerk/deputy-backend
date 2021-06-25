@@ -8,4 +8,10 @@ build/
 bin/
 
 # Temporary files
+cmd/oidc/test-*.json
+cmd/wip/*-temp.sql
 temp/
+log/
+
+# Other ignored files
+copy.cmd

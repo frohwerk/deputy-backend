@@ -18,7 +18,10 @@ if errorlevel 1 (
 if "%1"=="imgmatch" (
     go build -o bin/%1.exe ./cmd/%1
     if %errorlevel% neq 0 goto end
-    %term% "%1" cmd /c bin\%1.exe --port 8092
+    %term% "%1" cmd /c bin\%1.exe --port 8092 --registry http://ocrproxy-myproject.192.168.178.31.nip.io
+) else if "%1"=="script" (
+    set "EXAMPLE=Hallo Welt"
+    echo %EXAMPLE%
 ) else if "%1"=="rthook" (
     go build -o bin/%1.exe ./cmd/%1
     if %errorlevel% neq 0 goto end

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-y
+  labels:
+    app: service-y
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-y
+  template:
+    metadata:
+      labels:
+        app: service-y
+    spec:
+      containers:
+      - image: 172.30.1.1:5000/myproject/node-hello-world:1.0.3
+        imagePullPolicy: Always
+        name: service-y
+        resources:
+          limits:
+            cpu: 50m
+            memory: 64M

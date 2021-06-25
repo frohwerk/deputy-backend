@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS envs;
 CREATE TABLE envs (
-    id          VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id          VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name        VARCHAR(50) NOT NULL UNIQUE,
     order_hint  INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
@@ -8,7 +8,7 @@ CREATE TABLE envs (
 
 DROP TABLE IF EXISTS platforms;
 CREATE TABLE platforms (
-    id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+    id         VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
     env_id     VARCHAR(36) NOT NULL,
     name       VARCHAR(50),
     api_server VARCHAR(256),
@@ -20,7 +20,7 @@ CREATE TABLE platforms (
 
 DROP TABLE IF EXISTS components;
 CREATE TABLE components (
-    id    VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id    VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name  VARCHAR(50) NOT NULL UNIQUE,
     PRIMARY KEY (id)
 );
@@ -60,7 +60,7 @@ CREATE TABLE deployments_history (
 -- Apps entity
 DROP TABLE IF EXISTS apps;
 CREATE TABLE apps (
-    id    VARCHAR(36) NOT NULL DEFAULT gen_random_uuid(),
+    id    VARCHAR(36) NOT NULL DEFAULT uuid_generate_v4(),
     name  VARCHAR(50) UNIQUE,
     PRIMARY KEY (id)
 );

@@ -41,12 +41,6 @@ func (m *matcher) Match(ref string) ([]database.File, error) {
 		return nil, err
 	}
 
-	// This needs to go to the main function?
-	// for _, match := range matches {
-	// 	// TODO: Write link image <=> archive to database (images_files table?)
-	// 	fmt.Println(ref, "=>", match)
-	// }
-
 	return matches, nil
 }
 

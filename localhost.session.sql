@@ -7,7 +7,7 @@ SELECT * FROM platforms;
 SELECT * FROM components;
 SELECT * FROM deployments;
 
-------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
 SELECT a.attname, format_type(a.atttypid, a.atttypmod) AS data_type
 FROM   pg_index i
 JOIN   pg_attribute a ON a.attrelid = i.indrelid
@@ -232,3 +232,6 @@ DELETE FROM images_artifacts WHERE image_id = '172.30.1.1:5000/myproject/node-he
 SELECT image_id, file_path, file_digest FROM images_artifacts JOIN files ON files.file_id = images_artifacts.file_id;
 DELETE FROM files WHERE file_parent = 'e3387ae8-aa20-47bb-9b37-83966425628f' AND file_path like 'META-INF%';
 SELECT * FROM components c WHERE NOT EXISTS (SELECT * FROM apps_components ac WHERE ac.component_id = c.id);
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+SELECT * FROM pg_available_extensions WHERE name = 'uuid-ossp';
+SELECT * FROM pg_extension;

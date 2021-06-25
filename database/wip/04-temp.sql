@@ -1,3 +1,6 @@
+SELECT * FROM deployments_all;
+SELECT * FROM apps_components_all;
+---------------------------------------------------------------------------------------------------------------------------------------------------
 SELECT * FROM envs WHERE char_length(id) < 20;
 SELECT * FROM platforms WHERE char_length(id) < 20;
 SELECT * FROM apps WHERE char_length(id) < 20;
