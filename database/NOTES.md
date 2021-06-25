@@ -56,6 +56,10 @@ https://www.postgresql.org/docs/current/libpq-pgpass.html
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
+PGPASSFILE=/whatever/password psql -d deputy -U deputy -f my-sql-script.sql
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
 sh-4.4$ psql --help
 psql is the PostgreSQL interactive terminal.
 

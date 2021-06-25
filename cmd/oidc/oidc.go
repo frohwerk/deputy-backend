@@ -14,15 +14,61 @@ import (
 	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/keycloak"
 	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/security"
 	"github.com/frohwerk/deputy-backend/cmd/oidc/internal/whoami"
+	"github.com/frohwerk/deputy-backend/internal/logger"
 	"github.com/go-chi/chi"
 	"golang.org/x/oauth2"
+)
+
+var (
+	// Routes to other components
+	frontendRoute string
+	backendRoute  string
+	tasksRoute    string
+	// OpenID related variables
+	providerUri  string
+	clientId     string
+	clientSecret string
+	redirectUrl  string
+	// TLS private key and certificate
+	serverKey  string
+	serverCert string
+	// TODOs: Use key and cert files provided by openshift
+	// Maybe a wildcard certificate will be needeed for the public route? *.my-openshift-domain
+)
+
+var (
+	Log logger.Logger = logger.Basic(logger.LEVEL_INFO)
 )
 
 type ServerApplication struct {
 	http.Server
 }
 
+func Getenv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func init() {
+	frontendRoute = Getenv("FRONTEND_URI", "http://localhost:4200")
+	backendRoute = Getenv("BACKEND_URI", "http://localhost:8080")
+	tasksRoute = Getenv("TASKS_URI", "http://localhost:8877")
+
+	providerUri = Getenv("OPENID_PROVIDER", "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo")
+	clientId = Getenv("OPENID_CLIENT_ID", "test")
+	clientSecret = Getenv("OPENID_CLIENT_SECRET", "1d319ad6-cd77-48a6-af69-4d18ab28394a")
+	redirectUrl = Getenv("OPENID_REDIRECT_URI", "https://127.0.0.1.nip.io/auth/keycloak/callback")
+
+	serverKey = Getenv("TLS_SERVER_KEY", "certificates/127.0.0.1.nip.io/key.pem")
+	serverKey = Getenv("TLS_SERVER_CERT", "certificates/127.0.0.1.nip.io/cert.pem")
+}
+
 func main() {
+	Log.Warn("TODO: Use key and cert files provided by openshift")
+
 	ctx := context.Background()
 	defer func() { time.Sleep(500 * time.Millisecond) }()
 
@@ -34,37 +80,30 @@ func main() {
 	app.Addr = ":443"
 	app.Handler = mux
 
-	fmt.Println("TODO: add error handling for reverse proxy target host")
-	frontendRoute, _ := url.Parse("http://localhost:4200")
-	frontend := httputil.NewSingleHostReverseProxy(frontendRoute)
-	backendRoute, _ := url.Parse("http://localhost:8080")
-	backend := httputil.NewSingleHostReverseProxy(backendRoute)
-	tasksRoute, _ := url.Parse("http://localhost:8877")
-	taskExecutor := httputil.NewSingleHostReverseProxy(tasksRoute)
+	frontend := reverseProxy(frontendRoute)
+	backend := reverseProxy(backendRoute)
+	taskExecutor := reverseProxy(tasksRoute)
 
-	provider, err := oidc.NewProvider(ctx, "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo")
+	provider, err := oidc.NewProvider(ctx, providerUri)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Scanln()
 		return
 	}
 
-	// oidcconfig := oidc.Config{
-	// 	ClientID: "test",
-	// }
 	config := oauth2.Config{
-		ClientID:     "test",
-		ClientSecret: "1d319ad6-cd77-48a6-af69-4d18ab28394a",
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
 		Endpoint:     provider.Endpoint(),
-		RedirectURL:  "https://127.0.0.1.nip.io/auth/keycloak/callback",
+		RedirectURL:  redirectUrl,
 		Scopes:       []string{oidc.ScopeOpenID},
 	}
 	config.Endpoint.AuthStyle = oauth2.AuthStyleInHeader
 
-	jwks := oidc.NewRemoteKeySet(ctx, "https://keycloak-myproject.192.168.178.31.nip.io/auth/realms/demo/protocol/openid-connect/certs")
+	jwks := oidc.NewRemoteKeySet(ctx, fmt.Sprintf("%s/protocol/openid-connect/certs", providerUri))
 
 	mux.Handle("/login", keycloak.NewLoginHandler(&config))
-	mux.Handle("/logout", keycloak.NewLogoutHandler("https://keycloak-myproject.192.168.178.31.nip.io", "demo"))
+	mux.Handle("/logout", keycloak.NewLogoutHandler(providerUri))
 	mux.Handle("/auth/keycloak/callback", keycloak.NewCallbackHandler(&config))
 
 	mux.Handle("/whoami", whoami.NewHandler(&config, jwks))
@@ -78,10 +117,16 @@ func main() {
 	app.awaitShutdown()
 }
 
+func reverseProxy(route string) *httputil.ReverseProxy {
+	target, err := url.Parse(route)
+	if err != nil {
+		Log.Fatal("error parsing url '%s': %v", route, err)
+	}
+	return httputil.NewSingleHostReverseProxy(target)
+}
+
 func (server *ServerApplication) start() {
-	go func() {
-		server.ListenAndServeTLS("certificates/127.0.0.1.nip.io/cert.pem", "certificates/127.0.0.1.nip.io/key.pem")
-	}()
+	go func() { server.ListenAndServeTLS(serverCert, serverKey) }()
 }
 
 func (server *ServerApplication) awaitShutdown() {
