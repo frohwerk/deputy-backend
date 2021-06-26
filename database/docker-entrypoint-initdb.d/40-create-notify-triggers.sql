@@ -16,5 +16,24 @@ CREATE OR REPLACE FUNCTION change_notify() RETURNS trigger AS $$
     RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
------------------------------------------------------------------------------------------------------------------------------------------------------------------
 CREATE TRIGGER change_notify AFTER INSERT OR UPDATE OR DELETE ON platforms FOR EACH ROW EXECUTE FUNCTION change_notify();
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION deploy_notify() RETURNS trigger AS $$
+  BEGIN
+    CASE TG_OP
+      WHEN 'INSERT' THEN
+        PERFORM pg_notify('images', NEW.IMAGE_REF);
+        RETURN NEW;
+      WHEN 'UPDATE' THEN
+        PERFORM pg_notify('images', NEW.IMAGE_REF);
+        RETURN NEW;
+      WHEN 'DELETE' THEN
+        RETURN OLD;
+      ELSE
+        RAISE NOTICE 'UNEXPECTED TG_OP: %', TG_OP;
+    END CASE;
+    RETURN NEW;
+  END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER deploy_notify AFTER INSERT OR UPDATE ON deployments FOR EACH ROW EXECUTE FUNCTION change_notify();
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------

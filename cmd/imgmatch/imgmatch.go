@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 
 	"github.com/frohwerk/deputy-backend/cmd/imgmatch/handler"
 	"github.com/frohwerk/deputy-backend/cmd/imgmatch/matcher"
@@ -20,6 +21,14 @@ var (
 	port     int
 	registry string
 )
+
+func Getenv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
 
 func init() {
 	imgmatch.Flags().IntVarP(&port, "port", "p", 8092, "port number the server process will listen on")
@@ -37,6 +46,15 @@ func main() {
 func run(cmd *cobra.Command, args []string) error {
 	db := database.Open()
 	defer db.Close()
+
+	if v := os.Getenv("SERVER_PORT"); v != "" {
+		if i, err := strconv.Atoi(v); err != nil {
+			port = i
+		}
+	}
+	if v := os.Getenv("REGISTRY_BASE_URL"); v != "" {
+		registry = v
+	}
 
 	reg := &images.RemoteRegistry{BaseUrl: registry}
 	fs := database.NewFileStore(db)

@@ -1,3 +1,14 @@
+Create new table: images_files:
+- image_ref
+- file_id
+
+Trigger on deployments table => insert images_files (unique)
+Trigger on new table: notify_change()
+
+imgmatch listens on notify_change()
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
 Neues "Projekt" bzw. neuen Namespace anlegen:
 1. Login as admin (or any user allowed to create new namespaces)
 > oc new-project deputy

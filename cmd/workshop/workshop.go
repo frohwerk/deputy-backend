@@ -68,7 +68,6 @@ func execute(cmd *cobra.Command, args []string) {
 	}
 
 	if runAsServer {
-		Log.Error("Server-mode not done yet...")
 		sigs := make(chan os.Signal, 1)
 		signal.Notify(sigs, os.Interrupt, os.Kill)
 

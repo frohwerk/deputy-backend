@@ -21,7 +21,7 @@ func (h *handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	case image == "":
 		invalidParameter(rw)
 	default:
-		go h.accept(image)
+		go h.Accept(image)
 		rw.WriteHeader(http.StatusAccepted)
 		rw.Write(nil)
 	}
@@ -31,7 +31,7 @@ func New(m matcher.Matcher, l database.ImageLinker) http.Handler {
 	return &handler{m, l}
 }
 
-func (h *handler) accept(image string) {
+func (h *handler) Accept(image string) {
 	artifacts, err := h.Matcher.Match(image)
 	if err != nil {
 		log.Printf("error matching image %s: %s\n", image, err)

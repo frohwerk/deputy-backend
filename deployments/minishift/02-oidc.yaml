@@ -31,7 +31,9 @@ spec:
         - name: FRONTEND_URI
           value: "http://deputyfe.myproject.svc:8080"
         - name: BACKEND_URI
-          value: "http://deputybe.myproject.svc:8080"
+          value: "http://api-server.myproject.svc:8080"
+        - name: TASKS_URI
+          value: "http://tasks-server.myproject.svc:8080"
         - name: SERVER_ADDR
           value: ":8443"
         - name: OPENID_PROVIDER

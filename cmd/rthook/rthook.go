@@ -12,12 +12,10 @@ import (
 var (
 	command = &cobra.Command{Run: Run}
 
-	rtbase string
-	port   int
+	port int
 )
 
 func init() {
-	command.Flags().StringVarP(&rtbase, "artifactory", "r", "http://localhost:8091/libs-release-local", "base-uri for the artifactory server")
 	command.Flags().IntVarP(&port, "port", "p", 8082, "port this webhook will listen on")
 }
 
@@ -32,6 +30,11 @@ func main() {
 func Run(cmd *cobra.Command, args []string) {
 	db := database.Open()
 	defer db.Close()
+
+	rtbase := os.Getenv("ARTIFACTORY_BASE_URI")
+	if rtbase == "" {
+		rtbase = "http://localhost:8091/libs-release-local"
+	}
 
 	rt := artifactory.New(rtbase)
 	eh := &EventHandler{Repository: rt, FileCreater: database.NewFileStore(db)}
