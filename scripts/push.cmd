@@ -18,7 +18,8 @@ if "%1"=="oidc" (
     oc delete deployment oidc
     oc apply -f deployments/minishift/02-oidc.yaml
 ) else if "%1"=="k8smon" (
-    go build -o bin/linux/k8smon ./cmd/k8smon ./cmd/k8swatcher
+    go build -o bin/linux/k8smon ./cmd/k8smon
+    go build -o bin/linux/k8swatcher ./cmd/k8swatcher
     if %errorlevel% neq 0 goto end
     docker build -t 172.30.1.1:5000/myproject/k8smon:latest -f ./build/k8smon/Dockerfile ./bin/linux
     if %errorlevel% neq 0 goto end

@@ -23,6 +23,10 @@ type DeploymentUpdater interface {
 	SetImage(componentId, platformId, imageRef string) (*Deployment, error)
 }
 
+type DeploymentRemover interface {
+	RemoveImage(componentId, platformId string) error
+}
+
 type DeploymentLister interface {
 	ListForEnv(componentId, envId string) ([]Deployment, error)
 }
@@ -31,6 +35,7 @@ type DeploymentStore interface {
 	DeploymentLister
 	DeploymentCounter
 	DeploymentUpdater
+	DeploymentRemover
 }
 
 type deploymentStore struct {
@@ -69,6 +74,14 @@ func (ds *deploymentStore) SetImage(componentId, platformId, imageRef string) (*
 		WHERE deployments.component_id = EXCLUDED.component_id AND deployments.platform_id = EXCLUDED.platform_id AND deployments.image_ref != EXCLUDED.image_ref
 		RETURNING component_id, platform_id, image_ref, updated
 	`, componentId, platformId, imageRef)
+}
+
+func (ds *deploymentStore) RemoveImage(componentId, platformId string) error {
+	_, err := ds.DB.Exec(`DELETE FROM deployments WHERE component_id = $1 AND platform_id = $2`, componentId, platformId)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	return nil
 }
 
 func (ds *deploymentStore) queryDeployment(query string, args ...interface{}) (*Deployment, error) {

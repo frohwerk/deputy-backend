@@ -22,6 +22,7 @@ type ComponentStore interface {
 	Create(string) (*Component, error)
 	CreateIfAbsent(string) (*Component, error)
 	SetImage(string, string) (*Component, error)
+	GetByName(name string) (*Component, error)
 	ListAll() ([]Component, error)
 	ListAllForApp(id string) ([]Component, error)
 	ListUnassigned() ([]Component, error)
