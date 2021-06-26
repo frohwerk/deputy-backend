@@ -36,11 +36,11 @@ type ArchiveLookup interface {
 func (s *fileStore) FindByContent(f *File) ([]Archive, error) {
 	// TODO: Add second filter criteria: name (without path!)
 	rows, err := s.db.Query(`
-		SELECT DISTINCT a.file_id, a.file_digest, a.file_path
+		SELECT DISTINCT a.id, a.digest, a.path
 		  FROM files f
-		  JOIN files a ON a.file_id = f.file_parent
-		 WHERE f.file_digest = $1
-		   AND a.file_parent is null
+		  JOIN files a ON a.id = f.parent_id
+		 WHERE f.digest = $1
+		   AND a.parent_id is null
 	`, f.Digest)
 	if err != nil {
 		return nil, err

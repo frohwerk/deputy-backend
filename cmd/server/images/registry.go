@@ -57,7 +57,7 @@ func (r *RemoteRegistry) Manifest(ctx context.Context, s string) (distribution.M
 
 	switch ref := ref.(type) {
 	case reference.Canonical:
-		repo, err := client.NewRepository(repo, r.BaseUrl, http.DefaultTransport)
+		repo, err := client.NewRepository(repo, r.BaseUrl, r.transport())
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func (r *RemoteRegistry) Blob(ctx context.Context, s string) (io.ReadSeekCloser,
 
 	switch ref := ref.(type) {
 	case reference.Canonical:
-		repo, err := client.NewRepository(repo, r.BaseUrl, http.DefaultTransport)
+		repo, err := client.NewRepository(repo, r.BaseUrl, r.transport())
 		if err != nil {
 			return nil, err
 		}

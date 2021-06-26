@@ -77,7 +77,6 @@ func NewListener() *listener {
 			case n := <-l.impl.NotificationChannel():
 				if f, ok := l.handlers[n.Channel]; ok {
 					f(n.Extra)
-					Log.Debug("handler is done")
 				}
 			case <-l.close:
 				Log.Info("Closing listener...")

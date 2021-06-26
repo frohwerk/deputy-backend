@@ -68,33 +68,33 @@ func (s *fileStore) CreateIfAbsent(f *File) (*File, error) {
 
 func (s *fileStore) Get(id string) (*File, error) {
 	return s.selectFile(`
-		SELECT file_id, file_digest, file_path, COALESCE(file_parent, '')
+		SELECT id, digest, path, COALESCE(parent_id, '')
 		FROM files
-		WHERE file_id = $1
+		WHERE id = $1
 	`, id)
 }
 
 func (s *fileStore) FindByDigestAndPath(digest, path string) (*File, error) {
 	return s.selectFile(`
-		SELECT file_id, file_digest, file_path, COALESCE(file_parent, '')
+		SELECT id, digest, path, COALESCE(parent_id, '')
 		FROM files
-		WHERE file_digest = $1 AND file_path = $2
+		WHERE digest = $1 AND path = $2
 	`, digest, path)
 }
 
 func (s *fileStore) FindByDigest(digest string) ([]File, error) {
 	return s.selectfiles(`
-		SELECT file_id, file_digest, file_path, COALESCE(file_parent, '')
+		SELECT id, digest, path, COALESCE(parent_id, '')
 		FROM files
-		WHERE file_digest = $1 AND file_parent is null
+		WHERE digest = $1 AND parent_id is null
 	`, digest)
 }
 
 func (s *fileStore) FindByParent(id string) ([]File, error) {
 	return s.selectfiles(`
-		SELECT file_id, file_digest, file_path, file_parent
+		SELECT id, digest, path, parent_id
 		FROM files
-		WHERE file_parent = $1
+		WHERE parent_id = $1
 	`, id)
 }
 

@@ -1,24 +1,26 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 
 	"github.com/frohwerk/deputy-backend/cmd/imgmatch/handler"
 	"github.com/frohwerk/deputy-backend/cmd/imgmatch/matcher"
+	"github.com/frohwerk/deputy-backend/cmd/imgmatch/security"
 	"github.com/frohwerk/deputy-backend/cmd/server/images"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
+	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/notify"
 	"github.com/spf13/cobra"
 )
 
 var (
 	imgmatch = &cobra.Command{RunE: run}
-	port     int
+
+	Log logger.Logger
+
 	registry string
 )
 
@@ -31,14 +33,18 @@ func Getenv(key, defaultValue string) string {
 }
 
 func init() {
-	imgmatch.Flags().IntVarP(&port, "port", "p", 8092, "port number the server process will listen on")
+	Log = logger.Basic(logger.LEVEL_DEBUG)
+	handler.Log = Log
+	matcher.Log = logger.Basic(logger.LEVEL_TRACE)
+	security.Log = Log
+
 	imgmatch.Flags().StringVarP(&registry, "registry", "r", "", "The base uri of the docker container registry to use")
 }
 
 func main() {
 	imgmatch.Use = os.Args[0]
 	if err := imgmatch.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		Log.Error("%s", err)
 		os.Exit(1)
 	}
 }
@@ -47,37 +53,39 @@ func run(cmd *cobra.Command, args []string) error {
 	db := database.Open()
 	defer db.Close()
 
-	if v := os.Getenv("SERVER_PORT"); v != "" {
-		if i, err := strconv.Atoi(v); err != nil {
-			port = i
-		}
-	}
-	if v := os.Getenv("REGISTRY_BASE_URL"); v != "" {
+	if v := os.Getenv("REGISTRY_BASE_URL"); registry == "" {
 		registry = v
 	}
 
-	reg := &images.RemoteRegistry{BaseUrl: registry}
+	var tr http.RoundTripper = http.DefaultTransport
+	if buf, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		tr = security.BearerTokenAuthorization(tr, string(buf))
+	} else if os.ErrNotExist != err {
+		Log.Warn("No serviceaccount token found. Probably running on a local machine...")
+	}
+
+	reg := &images.RemoteRegistry{BaseUrl: registry, Transport: tr}
+
 	fs := database.NewFileStore(db)
 	m := matcher.New(fs, fs, reg)
 
-	server := http.Server{
-		Addr:    fmt.Sprintf(":%v", port),
-		Handler: handler.New(m, database.NewImageStore(db)),
+	h, l := handler.New(m, database.NewImageStore(db)), notify.NewListener()
+	err := l.Listen("images", func(image string) { go h.Accept(image) })
+	if err != nil {
+		Log.Fatal("error attaching listener to channel 'images': %s", err)
+	} else {
+		Log.Info("Listening on channel 'images'")
 	}
-
-	go func() { server.ListenAndServe() }()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	for {
-		fmt.Println("Server up on port", port)
 		switch sig := <-signals; sig {
 		case os.Interrupt:
-			server.Shutdown(context.Background())
+			l.Close()
 			return nil
 		case os.Kill:
-			server.Close()
 			return nil
 		}
 	}

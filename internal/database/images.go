@@ -13,10 +13,19 @@ type ImageLink struct {
 
 type ImageLinker interface {
 	AddLink(id, fileId string) (*ImageLink, error)
+	Count(image string) (int, error)
 }
 
 func NewImageStore(db *sql.DB) ImageLinker {
 	return &imageStore{db}
+}
+
+func (s *imageStore) Count(image string) (int, error) {
+	var i int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM images_artifacts WHERE image_id = $1`, image).Scan(&i); err != nil {
+		return -1, err
+	}
+	return i, nil
 }
 
 func (s *imageStore) AddLink(id, fileId string) (*ImageLink, error) {

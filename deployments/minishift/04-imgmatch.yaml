@@ -18,7 +18,7 @@ spec:
         - name: SERVER_PORT
           value: "8080"
         - name: REGISTRY_BASE_URL
-          value: "http://openshift-container-registry.myproject.svc:5000"
+          value: "http://docker-registry.default.svc:5000"
         - name: POSTGRESQL_URL
           value: "postgres://deputy-database.myproject.svc:5432/deputy?sslmode=disable"
         - name: POSTGRESQL_USER
