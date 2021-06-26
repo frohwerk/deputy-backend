@@ -11,6 +11,7 @@ type component struct {
 	Id       string       `json:"id,omitempty"`
 	Name     string       `json:"name,omitempty"`
 	Image    string       `json:"image,omitempty"`
+	Artifact string       `json:"artifact,omitempty"`
 	Deployed *epoch.Epoch `json:"deployed,omitempty"`
 }
 

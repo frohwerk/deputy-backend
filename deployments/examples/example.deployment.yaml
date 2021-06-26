@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: node-hello-world
+  name: example-frontend
 spec:
   selector:
     matchLabels:
-      app: node-hello-world
+      app: example-frontend
   template:
     metadata:
       labels:
-        app: node-hello-world
+        app: example-frontend
     spec:
       containers:
-      - name: node-hello-world
-        image: 172.30.1.1:5000/myproject/node-hello-world:1.0.2
+      - name: example-frontend
+        image: 172.30.1.1:5000/myproject/node-hello-world:1.0.3
         resources:
           limits:
             cpu: "0.05"

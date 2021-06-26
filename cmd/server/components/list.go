@@ -1,14 +1,18 @@
 package components
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/epoch"
+	"github.com/frohwerk/deputy-backend/internal/logger"
 	"github.com/frohwerk/deputy-backend/internal/request"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
 )
+
+var Log = logger.Default
 
 func (h *componentHandler) List(rw http.ResponseWriter, r *http.Request) {
 	fmt.Println("Incoming request: componentHandler.list")
@@ -48,6 +52,14 @@ func (h *componentHandler) list(params map[string][]string) ([]component, error)
 
 		result[i].Image = deployments[0].ImageRef
 		result[i].Deployed = epoch.FromTime(&deployments[0].Updated)
+
+		var artifact sql.NullString
+		query := `SELECT files.path FROM images_artifacts JOIN files ON files.id = file_id WHERE image_id = $1`
+		if err := h.db.QueryRow(query, result[i].Image).Scan(&artifact); err != nil && err != sql.ErrNoRows {
+			return nil, err
+		} else if artifact.Valid {
+			result[i].Artifact = artifact.String
+		}
 	}
 
 	return result, nil

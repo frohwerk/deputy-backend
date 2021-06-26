@@ -35,5 +35,5 @@ CREATE OR REPLACE FUNCTION deploy_notify() RETURNS trigger AS $$
     RETURN NEW;
   END;
 $$ LANGUAGE plpgsql;
-CREATE TRIGGER deploy_notify AFTER INSERT OR UPDATE ON deployments FOR EACH ROW EXECUTE FUNCTION change_notify();
+CREATE TRIGGER deploy_notify AFTER INSERT OR UPDATE ON deployments FOR EACH ROW EXECUTE FUNCTION deploy_notify();
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -17,6 +17,7 @@ type Component struct {
 	Id       string       `json:"id"`
 	Name     string       `json:"name,omitempty"`
 	Image    string       `json:"image,omitempty"`
+	Artifact string       `json:"artifact,omitempty"`
 	Platform string       `json:"-"`
 	Deployed *epoch.Epoch `json:"deployed,omitempty"`
 }
@@ -49,13 +50,16 @@ func (h *Repository) History(id, envId string, before *time.Time) (*App, error) 
         SELECT apps.id, apps.name,
                slice.created, slice.valid_from, slice.valid_until,
                components.id, components.name,
-               h.image_ref, platforms.name, h.last_deployment
+               h.image_ref, platforms.name, h.last_deployment,
+			   files.path
         FROM params CROSS JOIN slice
        INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
        INNER JOIN apps ON apps.id = h.app_id
 	    LEFT JOIN platforms ON platforms.id = h.platform_id
         LEFT JOIN components ON components.id = h.component_id
-       ORDER BY 3 DESC, 5 ASC
+		LEFT JOIN images_artifacts ia ON ia.image_id = h.image_ref
+		LEFT JOIN files on files.id = ia.file_id
+	 ORDER BY 3 DESC, 5 ASC
     `, id, envId, before)
 }
 
@@ -73,12 +77,15 @@ func (h *Repository) CurrentView(id, envId string) (*App, error) {
 		SELECT apps.id, apps.name,
 			   slice.created, slice.valid_from, slice.valid_until,
 			   components.id, components.name,
-			   h.image_ref, platforms.name, h.last_deployment
+			   h.image_ref, platforms.name, h.last_deployment,
+			   files.path
 		  FROM params CROSS JOIN slice
 	     INNER JOIN apps_history h ON h.app_id = _app_id AND h.env_id = _env_id AND h.valid_from = slice.valid_from
 	     INNER JOIN apps ON apps.id = h.app_id
 		  LEFT JOIN platforms ON platforms.id = h.platform_id
 		  LEFT JOIN components ON components.id = h.component_id
+		  LEFT JOIN images_artifacts ia ON ia.image_id = h.image_ref
+		  LEFT JOIN files on files.id = ia.file_id
 	     ORDER BY 3 DESC, 5 ASC
 	`, id, envId)
 }
@@ -93,10 +100,10 @@ func (h *Repository) query(query string, args ...interface{}) (*App, error) {
 	app := App{Components: []Component{}}
 	//snapshots := []state{}
 	for i := 0; rows.Next(); i++ {
-		var id, name, image, platform sql.NullString
+		var id, name, image, artifact, platform sql.NullString
 		var created, from, until, deployed sql.NullTime
 		// fmt.Printf("result row #%v\n", i+1)
-		err := rows.Scan(&app.Id, &app.Name, &created, &from, &until, &id, &name, &image, &platform, &deployed)
+		err := rows.Scan(&app.Id, &app.Name, &created, &from, &until, &id, &name, &image, &platform, &deployed, &artifact)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error during history row scan: %v\n", err)
 			return nil, err
@@ -122,6 +129,9 @@ func (h *Repository) query(query string, args ...interface{}) (*App, error) {
 			}
 			if image.Valid {
 				c.Image = image.String
+			}
+			if artifact.Valid {
+				c.Artifact = artifact.String
 			}
 			if platform.Valid {
 				c.Platform = platform.String
