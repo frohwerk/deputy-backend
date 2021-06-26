@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"time"
 
 	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
 	"github.com/frohwerk/deputy-backend/internal/request"
+	"github.com/frohwerk/deputy-backend/internal/trust"
 	"github.com/frohwerk/deputy-backend/pkg/httputil"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -111,12 +111,7 @@ func (h *handler) getPlatform(env, name string) (*platform, error) {
 	}
 
 	fmt.Println("TODO: replace hard coded client certificate")
-	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
-	cadata, err := os.ReadFile(cafile)
-	if err != nil {
-		return nil, err
-	}
-	p.CAData = cadata
+	p.CAData = trust.CAData
 
 	return &p, nil
 }

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8smon
+spec:
+  selector:
+    matchLabels:
+      app: k8smon
+  template:
+    metadata:
+      labels:
+        app: k8smon
+    spec:
+      containers:
+      - name: k8smon
+        image: 172.30.1.1:5000/myproject/k8smon:latest
+        env:
+        - name: POSTGRESQL_URL
+          value: "postgres://deputy-database.myproject.svc:5432/deputy?sslmode=disable"
+        - name: POSTGRESQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: deputy-database-credentials
+              key: username
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: deputy-database-credentials
+              key: password
+        resources:
+          limits:
+            cpu: "0.1"
+            memory: "128Mi"

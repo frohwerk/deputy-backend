@@ -31,6 +31,17 @@ SQL> CREATE EXTENSION IF NOT EXISTS 'uuid-ossp';
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
+Before rollout on minishift we need to create our minica and our wildcard certificate for the minishift default router:
+minica --domains '*.192.168.178.31.nip.io'
+
+DO REMEMBER: You have to set the Frontend URL in the keycloak realm settings, otherwise it will redirect to a cluster-local entrypoint
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+Add trusted certificates to container image
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
 POSTGRESQL_USER
 User name for PostgreSQL account to be created
 
@@ -43,6 +54,12 @@ Database name
 ---------------------------------------------------------------------------------------------------------------------------------------------------
 
 Uploading custom images to openshift container registry:
+
+oc login -u USER -p PASS
+docker login -u USER -p ${oc whoami -t} ${minishift openshift registry}
+docker build -t ${minishift openshift registry}/NAMESPACE/NAME -f ./build/NAME/Dockerfile .
+docker push ${minishift openshift registry}/NAMESPACE/NAME
+
 https://docs.openshift.com/container-platform/3.11/install_config/registry/accessing_registry.html#access-pushing-and-pulling-images
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------

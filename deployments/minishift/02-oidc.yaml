@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oidc
+  annotations:
+    service.alpha.openshift.io/serving-cert-secret-name: oidc-cert
+spec:
+  selector:
+    app: oidc
+  ports:
+  - port: 443
+    targetPort: 8443
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oidc
+spec:
+  selector:
+    matchLabels:
+      app: oidc
+  template:
+    metadata:
+      labels:
+        app: oidc
+    spec:
+      containers:
+      - name: oidc
+        image: 172.30.1.1:5000/myproject/oidc:latest
+        env:
+        - name: FRONTEND_URI
+          value: "http://deputyfe.myproject.svc:8080"
+        - name: BACKEND_URI
+          value: "http://deputybe.myproject.svc:8080"
+        - name: SERVER_ADDR
+          value: ":8443"
+        - name: OPENID_PROVIDER
+          value: "http://keycloak.myproject.svc:8080/auth/realms/demo"
+        - name: OPENID_REDIRECT_URI
+          value: "https://deputy.192.168.178.31.nip.io/auth/keycloak/callback"
+        - name: TLS_SERVER_KEY
+          value: "/app/pki/tls.key"
+        - name: TLS_SERVER_CERT
+          value: "/app/pki/tls.crt"
+        volumeMounts:
+          - name: oidc-cert-volume
+            mountPath: /app/pki
+            readOnly: true
+        resources:
+          limits:
+            cpu: "0.1"
+            memory: "128Mi"
+      volumes:
+      - name: oidc-cert-volume
+        secret:
+          secretName: oidc-cert
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: oidc
+spec:
+  host: deputy.192.168.178.31.nip.io
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+    caCertificate: |
+      -----BEGIN CERTIFICATE-----
+      MIIDSzCCAjOgAwIBAgIIbDFET650sx0wDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
+      AxMVbWluaWNhIHJvb3QgY2EgNmMzMTQ0MCAXDTIxMDUyOTExMDAyNloYDzIxMjEw
+      NTI5MTIwMDI2WjAgMR4wHAYDVQQDExVtaW5pY2Egcm9vdCBjYSA2YzMxNDQwggEi
+      MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQD60X8RRudRt2nbNOBKgv4uIsDl
+      OiX7fMMBQ2egkgkFfY9Ml3m8U+QL4+zHK5FHBVcz0GDI5nOFcIj4xy9xfKEQPnIo
+      XAibOV9A2NQx42jDZ6OWCyvO4sxheI2UTzxanwVUdaFNeMU+jKsWxXbsTUfbwBJX
+      uT7+snHanryW9650QGPd6v5Xl1kD66XKujEEcR6iSYS864GiO9oZ7hCtsFjsreeB
+      uyEPPP+quHcmIRjxZbjVbNy+8UO5VDd8xesgKJ7ozJDgMKO4E5zBsPL6ACe6xRP4
+      0xINjgjs5X4UG4X40ExUohSVjAZzdBPukkU7b1fsS8Ug9Wez1usuRBct1YLRAgMB
+      AAGjgYYwgYMwDgYDVR0PAQH/BAQDAgKEMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggr
+      BgEFBQcDAjASBgNVHRMBAf8ECDAGAQH/AgEAMB0GA1UdDgQWBBTqx+ZEtrcZv7m7
+      Nvwt4stMo9y4fjAfBgNVHSMEGDAWgBTqx+ZEtrcZv7m7Nvwt4stMo9y4fjANBgkq
+      hkiG9w0BAQsFAAOCAQEAC+lhHA//t/0wtY/cvTI723K1T7Pf3NIe0wQsM/KVC0lh
+      wa7MDOuuHlGu19Yt14NeOP84Fuuf25ZEEPBegyzUk4aMmhdWVURVd5ITf5ytPaqa
+      HYcK4h+N/pEErU2u9oowoiw3Wy+OfX8vZpYtJ+oD39WP8E6oQGlJXfhUl5VolyR3
+      MbmM7tZdeExNydXiaM12Mv13D+ZcIzA7J7U9QqV8uENPFs42SHN2EHJAdix1X54U
+      FEopmM6BxI9Hv7ArXfXX6p2RW63x1w5aSESvM4TghPpr8PJ2FWrCUw/IbM3vWzYL
+      MaKa2H05nTbJytsJ0dbVfRgXMT0k+nSXMcb+aHBLZQ==
+      -----END CERTIFICATE-----
+    certificate: |
+      -----BEGIN CERTIFICATE-----
+      MIIDSjCCAjKgAwIBAgIITs811I9DRqkwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
+      AxMVbWluaWNhIHJvb3QgY2EgNmMzMTQ0MB4XDTIxMDUyOTExMDAyNloXDTIzMDYy
+      ODExMDAyNlowIjEgMB4GA1UEAwwXKi4xOTIuMTY4LjE3OC4zMS5uaXAuaW8wggEi
+      MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCbDWiOupWcW0ynyuYlHJZrCFJI
+      Tkj4fgkHvdv2nEIu8L3iB0c+sOlKzjW3+o/Dtj1mab1BsVL62J4V0YbVe+M3HvhO
+      A/rwzsgsuzFv0T0nlXFzq3ZOOp8UcLsc0gxJZj9QIZ2c7NEdv136mMnmivSM5wW+
+      nxzOZBCPtY/lkIta0L4MUx7Sm5k0S9aQNEKBJ4v8L4Q0vVXtsmJ4moRqrrAiM14D
+      IZS1BDc4LCsXmLSUwwPHq1GooDPimr0D5qWTXcxqISuz7lfa2UxBVXVt5bNQ9jBX
+      Xtt4CpXwfEZyO1Wh4EdGZo7960W4wRgQ0b6FPPe02Rf5tDdW3ei6c8qFtFj5AgMB
+      AAGjgYUwgYIwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggr
+      BgEFBQcDAjAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFOrH5kS2txm/ubs2/C3i
+      y0yj3Lh+MCIGA1UdEQQbMBmCFyouMTkyLjE2OC4xNzguMzEubmlwLmlvMA0GCSqG
+      SIb3DQEBCwUAA4IBAQCt15zgymmpQDs5+mU0zt8T6fYP9IwKqI5GfjsRbRdAGzt6
+      AkIA4PWKYJ89oiYIMrVPMhSaTCDcR/HXEt8QGfdZvmx/Xbuw0HgNAVWZaW008WQG
+      dxYDp5D9eMcwaiFIcp3okzzDoUBB5Ox4rPJaS2BtEZTYepMqSIU6Ln2sA1EI1FfT
+      pXd2iXItbGnlMzSzAzpTk+be6fU+G5kgzXu+HKXAU9GLqADthiskw8Lwhs32CndW
+      kbDwgFn/nXXsrrVyJY0oc4kie7teG6NGj/vBaA1YtGlP9P4k6fQwU8Rx0i+Q4Tpx
+      no1FnOD84W3R5zt/zST3g5A/MemA5m1+e68IScW1
+      -----END CERTIFICATE-----
+    key: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEAmw1ojrqVnFtMp8rmJRyWawhSSE5I+H4JB73b9pxCLvC94gdH
+      PrDpSs41t/qPw7Y9Zmm9QbFS+tieFdGG1XvjNx74TgP68M7ILLsxb9E9J5Vxc6t2
+      TjqfFHC7HNIMSWY/UCGdnOzRHb9d+pjJ5or0jOcFvp8czmQQj7WP5ZCLWtC+DFMe
+      0puZNEvWkDRCgSeL/C+ENL1V7bJieJqEaq6wIjNeAyGUtQQ3OCwrF5i0lMMDx6tR
+      qKAz4pq9A+alk13MaiErs+5X2tlMQVV1beWzUPYwV17beAqV8HxGcjtVoeBHRmaO
+      /etFuMEYENG+hTz3tNkX+bQ3Vt3ounPKhbRY+QIDAQABAoIBACcgeRQbbYmpWGy3
+      POB8mFCmJu1sI+nhFDJJ7OoMgH8L7T7Oi2H8jsJ7yv6EUicXI+NmJ4YeU0xNwYbL
+      +vSAcNQGEq7NPlPqOoVfL5iB+qa0hY6k5BPVozMrR2x8bPFQxgVYlkd1U0fodLS6
+      PajZw+CSo9Z4nHJQugUp0ggiM6hUxDJwXuxEHOojrXTVGkAHN93nNIK8I3mrbVvR
+      qzkOanEcoNRgugg6KeFN2I8oneEQKQ0S3veQ+4KXMaStOKHalcsK6TSeeGOcrLO8
+      APwRps3BAgB1pXtl3Jx3MnKmAtsS5b/kDdgvfPZYtJqb8YRP8RCvELqKZ8pscB1c
+      6p5WAqECgYEAxas39i1b630AVlExwSv7xQhfo4O8NR6PCv5NfH253JJgBrSrWg68
+      KWqW+/Uf7ayuhRxWXPHG9J7RMrGpPuRuYVSewTGA3esvrH04nbmsXfmvvDtxdJsT
+      wpMt5Fs5BiQi2JmaE9nudjj2VYVbdxhYd8sHJYPEPsT484bEoC7UM9UCgYEAyM7B
+      DAeO+i5Ky4++AdN2BLqtEsi1ffe+ByaaUchWYtECNsDE85V3uqfJOnM5wmQ5nOWo
+      6oWf5PbIBQt0RWquyAdZq4/Gp1IgcJvyqlElMk31n5VyZxBN6cYTDTPi/NhEliqe
+      gtCQODSBP6E3vWf6fX0m6F/IvaRfk/5jSQAWdpUCgYAEp2ZW5nR+k9/ZKGo6eRWh
+      avQNfoGE4qZNhPVAFBm3Jr8aCVDreuNVOkw5vGi3CNTHD4a9A3hCtCaKwgIRGAG9
+      Sue99rNpBiuGLSCTHhb/02wey2t9alVJxHtVIAy0p08muF8XTo89u1OZad1gbXNP
+      xrjxWivZqnuOCENC3jdizQKBgQCk/GrUTWmF2H8PnTyKF4nB/PaylkG4C9MP4QGt
+      7CI98mgVQHERiV7j93N4GK/+LYbAiFkuxzdGUhSpQG35ktuj8ZYVRX38f5ezrg3F
+      LgKXwEHtKkbisxyw1FNW56i6AZ7omn++D0pPQ6Rl+Tno3wOKE0fiaMBwQBtfZwWA
+      Nxg9uQKBgQCR3fyPovLuNCf0smw3uPDXr1r69rrQTAcOucTUG+CDDaQbOS91iy9t
+      90o8Qx/0u0HY+5sv73p3CjaIaabQoZYZ2r50lyH7Ch1c2L/JSnrA/cmTYBorrvrd
+      DtKLprKDCmlSD8YlfY4Lau0fxTqAX3ABWFR0bsy3ByHCqtvdLpC7mw==
+      -----END RSA PRIVATE KEY-----
+  to:
+    kind: Service
+    name: oidc
+    weight: 100

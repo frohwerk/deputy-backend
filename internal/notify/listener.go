@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/logger"
 	"github.com/lib/pq"
 )
@@ -57,6 +58,10 @@ func (l *listener) Close() {
 }
 
 func NewListener() *listener {
+	conninfo, err := database.GetConninfo()
+	if err != nil {
+		Log.Warn("error reading connection info for postgresql listener: %s", err)
+	}
 	l := &listener{
 		Mutex:    sync.Mutex{},
 		impl:     pq.NewListener(conninfo, 5*time.Second, time.Minute, handleListenerEvent),

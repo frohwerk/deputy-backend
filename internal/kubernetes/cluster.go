@@ -3,7 +3,8 @@ package kubernetes
 import (
 	"database/sql"
 	"fmt"
-	"os"
+
+	"github.com/frohwerk/deputy-backend/internal/trust"
 
 	"k8s.io/client-go/kubernetes"
 	apps "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -43,13 +44,7 @@ var (
 )
 
 func init() {
-	var err error
-	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
-	cadata, err = os.ReadFile(cafile)
-	if err != nil {
-		fmt.Printf("error reading cadata from %s: %s", cafile, err)
-		os.Exit(1)
-	}
+	cadata = trust.CAData
 }
 
 func CreateConfigRepository(db DataSource) *ConfigRepository {
@@ -110,5 +105,5 @@ func (p *platform) Deployments() apps.DeploymentInterface {
 }
 
 func (p *platform) Pods() core.PodInterface {
-	return p.client.Core().Pods(p.namespace)
+	return p.client.CoreV1().Pods(p.namespace)
 }

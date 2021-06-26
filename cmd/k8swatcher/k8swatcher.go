@@ -14,6 +14,7 @@ import (
 
 	"github.com/frohwerk/deputy-backend/internal/database"
 	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/trust"
 	"github.com/frohwerk/deputy-backend/pkg/api"
 	yaml "gopkg.in/yaml.v2"
 
@@ -89,19 +90,11 @@ func main() {
 	platform = p
 
 	fmt.Println("TODO: replace hard coded certificate file")
-	fmt.Println("TODO: add option to get secret and certificate file from a file reference (useful fur cluster deployment)")
-	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
-	cadata, err := os.ReadFile(cafile)
-	if err != nil {
-		fmt.Printf("error reading cadata from %s: %s", cafile, err)
-		os.Exit(1)
-	}
-
 	config := &rest.Config{
 		Host:        platform.ServerUri,
 		BearerToken: platform.Secret,
 		TLSClientConfig: rest.TLSClientConfig{
-			CAData: cadata,
+			CAData: trust.CAData,
 		},
 	}
 

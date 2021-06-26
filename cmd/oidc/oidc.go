@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -20,6 +21,8 @@ import (
 )
 
 var (
+	// server configuration
+	serverAddr string
 	// Routes to other components
 	frontendRoute string
 	backendRoute  string
@@ -32,12 +35,14 @@ var (
 	// TLS private key and certificate
 	serverKey  string
 	serverCert string
-	// TODOs: Use key and cert files provided by openshift
-	// Maybe a wildcard certificate will be needeed for the public route? *.my-openshift-domain
+	// TODOs: Find a smarter way to do this...
+	overrides = map[string]string{
+		"http://keycloak.myproject.svc:8080": "https://keycloak-myproject.192.168.178.31.nip.io",
+	}
 )
 
 var (
-	Log logger.Logger = logger.Basic(logger.LEVEL_INFO)
+	Log logger.Logger = logger.Basic(logger.LEVEL_TRACE)
 )
 
 type ServerApplication struct {
@@ -53,6 +58,7 @@ func Getenv(key, defaultValue string) string {
 }
 
 func init() {
+	serverAddr = Getenv("SERVER_ADDR", ":443")
 	frontendRoute = Getenv("FRONTEND_URI", "http://localhost:4200")
 	backendRoute = Getenv("BACKEND_URI", "http://localhost:8080")
 	tasksRoute = Getenv("TASKS_URI", "http://localhost:8877")
@@ -63,27 +69,40 @@ func init() {
 	redirectUrl = Getenv("OPENID_REDIRECT_URI", "https://127.0.0.1.nip.io/auth/keycloak/callback")
 
 	serverKey = Getenv("TLS_SERVER_KEY", "certificates/127.0.0.1.nip.io/key.pem")
-	serverKey = Getenv("TLS_SERVER_CERT", "certificates/127.0.0.1.nip.io/cert.pem")
+	serverCert = Getenv("TLS_SERVER_CERT", "certificates/127.0.0.1.nip.io/cert.pem")
 }
 
 func main() {
-	Log.Warn("TODO: Use key and cert files provided by openshift")
+	if addrs, err := net.LookupHost("keycloak.myproject.svc"); err != nil {
+		Log.Warn("DNS lookup failed: %s", addrs)
+	} else {
+		for _, addr := range addrs {
+			fmt.Println(addr)
+		}
+	}
 
+	Log.Warn(">>>> TODO: Use key and cert files provided by openshift")
+
+	Log.Trace("ctx := context.Background()")
 	ctx := context.Background()
+	Log.Trace("defer func() { time.Sleep(500 * time.Millisecond) }()")
 	defer func() { time.Sleep(500 * time.Millisecond) }()
 
+	Log.Trace("wd, _ := os.Getwd()")
 	wd, _ := os.Getwd()
-	fmt.Println("Working directory: ", wd)
+	Log.Info("Working directory: %s", wd)
 
 	mux := chi.NewMux()
 	app := new(ServerApplication)
-	app.Addr = ":443"
+	app.Addr = serverAddr
 	app.Handler = mux
 
 	frontend := reverseProxy(frontendRoute)
+	frontend.Transport = http.DefaultTransport
 	backend := reverseProxy(backendRoute)
 	taskExecutor := reverseProxy(tasksRoute)
 
+	Log.Info("Connecting to OpenID provider at %s", providerUri)
 	provider, err := oidc.NewProvider(ctx, providerUri)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -100,10 +119,12 @@ func main() {
 	}
 	config.Endpoint.AuthStyle = oauth2.AuthStyleInHeader
 
+	Log.Info("Loading OpenID provider certificates from %s/protocol/openid-connect/certs", providerUri)
 	jwks := oidc.NewRemoteKeySet(ctx, fmt.Sprintf("%s/protocol/openid-connect/certs", providerUri))
 
-	mux.Handle("/login", keycloak.NewLoginHandler(&config))
-	mux.Handle("/logout", keycloak.NewLogoutHandler(providerUri))
+	Log.Info("Configuring enpdoints...")
+	mux.Handle("/login", keycloak.NewLoginHandler(&config, overrides))
+	mux.Handle("/logout", keycloak.NewLogoutHandler(providerUri, overrides))
 	mux.Handle("/auth/keycloak/callback", keycloak.NewCallbackHandler(&config))
 
 	mux.Handle("/whoami", whoami.NewHandler(&config, jwks))
@@ -112,6 +133,7 @@ func main() {
 	mux.Handle("/api/*", security.NewDecorator(&config, backend))
 	mux.Handle("/api/tasks/*", security.NewDecorator(&config, taskExecutor))
 
+	Log.Info("Starting application...")
 	app.start()
 
 	app.awaitShutdown()
@@ -126,7 +148,18 @@ func reverseProxy(route string) *httputil.ReverseProxy {
 }
 
 func (server *ServerApplication) start() {
-	go func() { server.ListenAndServeTLS(serverCert, serverKey) }()
+	go func() {
+		Log.Trace("server.ListenAndServeTLS('%s', '%s')", serverCert, serverKey)
+		err := server.ListenAndServeTLS(serverCert, serverKey)
+		switch {
+		case err == nil:
+			// Do nothing
+		case err == http.ErrServerClosed:
+			Log.Info("server closed: %s", err)
+		default:
+			Log.Info("error in server goroutine: %s", err)
+		}
+	}()
 }
 
 func (server *ServerApplication) awaitShutdown() {

@@ -23,6 +23,7 @@ import (
 	"github.com/frohwerk/deputy-backend/internal/epoch"
 	k8s "github.com/frohwerk/deputy-backend/internal/kubernetes"
 	"github.com/frohwerk/deputy-backend/internal/logger"
+	"github.com/frohwerk/deputy-backend/internal/trust"
 	"github.com/go-chi/chi"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -266,12 +267,7 @@ func getKubeconfig() (string, error) {
 }
 
 func createKubernetesClient() (*kubernetes.Clientset, error) {
-	cafile := "E:/projects/go/src/github.com/frohwerk/deputy-backend/certificates/minishift.crt"
-	cadata, err := os.ReadFile(cafile)
-	if err != nil {
-		Log.Info("error reading cadata from %s: %s", cafile, err)
-		os.Exit(1)
-	}
+	cadata := trust.CAData
 
 	config := &rest.Config{
 		Host:        "https://192.168.178.31:8443",

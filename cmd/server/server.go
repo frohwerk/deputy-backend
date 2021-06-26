@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -82,7 +81,8 @@ func flush(resp http.ResponseWriter) bool {
 }
 
 func main() {
-	todos.print()
+	// todos.print()
+	fmt.Println("starting...")
 	command.Use = os.Args[0]
 	if err := command.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -91,10 +91,8 @@ func main() {
 }
 
 func Run(cmd *cobra.Command, args []string) {
-	db, err := sql.Open("postgres", "postgres://deputy:!m5i4e3h2e1g@localhost:5432/deputy?sslmode=disable")
-	if err != nil {
-		log.Fatalf("%v\n", err)
-	}
+	fmt.Println("database.Open()")
+	db := database.Open()
 	defer util.Close(db, log.Fatalf)
 
 	as := database.NewAppStore(db)
